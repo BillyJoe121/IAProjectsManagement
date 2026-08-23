@@ -17,7 +17,7 @@ La rama `portfolio-demo` está aislada de la versión institucional. No requiere
 1. En Render, selecciona **New → Static Site** y conecta el repositorio de portafolio.
 2. Selecciona la rama `portfolio-demo`.
 3. Render detectará `render.yaml`. Verifica `npm ci && npm run build` como comando de build y `dist` como directorio publicado.
-4. No agregues `VITE_SUPABASE_URL`, claves publicables, ni ningún secreto. El único valor requerido es `VITE_DEMO_MODE=true`.
+4. No agregues `VITE_SUPABASE_URL`, claves publicables, ni ningún secreto. La rama contiene `.env.production` con `VITE_DEMO_MODE=true`; no necesitas crear esta variable manualmente en Render.
 5. Cuando termine el build, abre el URL de Render y verifica la vista de docente, la vista de estudiante, una edición local, el botón de restablecimiento y una recarga de una ruta interna.
 
 ## Seguridad y mantenimiento

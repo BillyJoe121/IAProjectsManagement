@@ -14,7 +14,7 @@ npm run dev
 
 ## Despliegue en Render
 
-El archivo `render.yaml` incluye la configuración para un Static Site. En Render selecciona la rama `portfolio-demo` y confirma que `VITE_DEMO_MODE=true` esté presente durante el build. No configures variables de Supabase.
+El archivo `render.yaml` incluye la configuración para un Static Site. La rama ya incorpora `VITE_DEMO_MODE=true` en `.env.production`, por lo que Render siempre construirá el demo aunque el Static Site se haya creado manualmente. No configures variables de Supabase.
 
 La guía detallada está en [docs/PORTFOLIO_DEMO.md](docs/PORTFOLIO_DEMO.md).
 
