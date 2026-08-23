@@ -86,10 +86,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   const logout = async () => {
     if (localDemoEnabled) return;
-    // Mutations are authorized with the active user's JWT. Finish the outbox
-    // before replacing a student's session with a monitor's session, so a
-    // pending application cannot be rejected by RLS as an impersonated write.
-    await SyncService.flush();
+    // Try to finish writes under the active identity, but never trap someone
+    // in a session because the network is unavailable or an old queue entry is
+    // invalid. Transient entries remain queued for a later retry.
+    try {
+      await SyncService.flush();
+    } catch (error) {
+      console.warn('No se pudo terminar la sincronización antes de cerrar sesión.', error);
+    }
     await supabaseClient?.auth.signOut();
     await loadUser(null);
   };
