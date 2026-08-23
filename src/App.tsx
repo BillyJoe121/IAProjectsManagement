@@ -328,7 +328,42 @@ const Workspace: React.FC = () => {
     >
       {content}
     </AppShell>
-    {(passwordModal || isPasswordRecovery) && <div className="fixed inset-0 z-[110] grid place-items-center bg-slate-950/50 p-4"><form onSubmit={(event) => { event.preventDefault(); setPasswordError(''); void changeAdminPassword(newPassword).then(() => { setPasswordModal(false); setNewPassword(''); }).catch((caught) => setPasswordError(caught instanceof Error ? caught.message : 'No fue posible cambiar la contraseña.')); }} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><h2 className="text-lg font-extrabold text-[#0E2C40]">Cambiar contraseña</h2><p className="mt-1 text-xs text-slate-500">Usa una contraseña nueva de al menos 12 caracteres.</p><input autoFocus required minLength={12} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="mt-4 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="Nueva contraseña" />{passwordError && <p role="alert" className="mt-2 text-xs text-rose-700">{passwordError}</p>}<div className="mt-4 flex justify-end gap-2"><button type="button" onClick={() => { setPasswordModal(false); }} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">Cancelar</button><button className="rounded-xl bg-[#0D9488] px-3 py-2 text-xs font-bold text-white">Guardar contraseña</button></div></form></div>}
+    {(passwordModal || isPasswordRecovery) && (
+      <div className="fixed inset-0 z-[110] grid place-items-center bg-slate-950/50 p-4" role="presentation">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            setPasswordError('');
+            void changeAdminPassword(newPassword)
+              .then(() => { setPasswordModal(false); setNewPassword(''); })
+              .catch((caught) => setPasswordError(caught instanceof Error ? caught.message : 'No fue posible cambiar la contraseña.'));
+          }}
+          className="w-full max-w-md border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl"
+        >
+          <h2 className="text-lg font-extrabold text-[#0E2C40]">Cambiar contraseña</h2>
+          <p className="mt-1 text-xs text-slate-600">Usa una contraseña nueva de al menos 12 caracteres.</p>
+          <label className="mt-4 block text-xs font-bold text-slate-800">
+            Nueva contraseña
+            <input
+              autoFocus
+              required
+              minLength={12}
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              className="mt-1 w-full border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 caret-[#0D9488] placeholder:text-slate-400 outline-none transition focus:border-[#0D9488] focus:ring-2 focus:ring-[#0D9488]/25"
+              placeholder="Nueva contraseña"
+            />
+          </label>
+          {passwordError && <p role="alert" className="mt-2 border border-rose-200 bg-rose-50 p-2 text-xs font-semibold text-rose-700">{passwordError}</p>}
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={() => { setPasswordModal(false); setNewPassword(''); setPasswordError(''); }} className="border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0D9488]">Cancelar</button>
+            <button className="bg-[#0D9488] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0F766E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0D9488]">Guardar contraseña</button>
+          </div>
+        </form>
+      </div>
+    )}
     </>
   );
 };
