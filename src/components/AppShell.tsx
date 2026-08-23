@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Bell,
   CalendarDays,
@@ -7,6 +7,7 @@ import {
   FolderKanban,
   LayoutDashboard,
   LogOut,
+  MoreHorizontal,
   Sparkles,
   TriangleAlert,
   Users,
@@ -25,6 +26,7 @@ interface AppShellProps {
   onNavigate: (page: AppPage) => void;
   onSwitchDemoRole: () => void;
   onLogout?: () => void;
+  onChangePassword?: () => void;
   canSwitchDemoRole?: boolean;
   syncState?: 'local' | 'synced' | 'pending' | 'error';
 }
@@ -49,14 +51,19 @@ export const AppShell: React.FC<AppShellProps> = ({
   onNavigate,
   onSwitchDemoRole,
   onLogout,
+  onChangePassword,
   canSwitchDemoRole = false,
   syncState = 'local',
 }) => {
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const isMonitor = role === 'superuser';
   const items = isMonitor
     ? monitorItems
     : monitorItems.filter((item) => ['inicio', 'tareas', 'agenda', 'incidencias', 'documentos'].includes(item.id));
   const studentLabels: Partial<Record<AppPage, string>> = { inicio: 'Mi proyecto', agenda: 'Reuniones' };
+  const mobilePrimaryItems = items.filter((item) => ['inicio', 'proyectos', 'agenda', 'tareas'].includes(item.id));
+  const mobileMoreItems = items.filter((item) => !mobilePrimaryItems.some((primary) => primary.id === item.id));
+  const mobileMoreSelected = mobileMoreItems.some((item) => item.id === page);
   const syncLabel =
     syncState === 'local'
       ? 'Datos locales'
@@ -132,13 +139,20 @@ export const AppShell: React.FC<AppShellProps> = ({
             )}
 
             {onLogout && (
-              <button
+              <><button
+                onClick={onChangePassword}
+                className="hidden rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 sm:inline-flex"
+                type="button"
+              >
+                Contraseña
+              </button><button
                 onClick={onLogout}
                 className="app-shell__icon-button rounded-xl border border-slate-200/80 bg-white text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
                 aria-label="Cerrar sesión"
               >
                 <LogOut className="h-4 w-4" />
               </button>
+              </>
             )}
           </div>
         </div>
@@ -194,11 +208,22 @@ export const AppShell: React.FC<AppShellProps> = ({
         </main>
       </div>
 
+      {mobileMoreOpen && mobileMoreItems.length > 0 && (
+        <div className="fixed inset-x-3 bottom-[5.25rem] z-40 rounded-xl border border-slate-200 bg-white p-2 shadow-xl lg:hidden" aria-label="Más opciones de navegación">
+          <div className="grid grid-cols-2 gap-1">
+            {mobileMoreItems.map((item) => {
+              const Icon = item.icon;
+              const label = isMonitor ? item.label : studentLabels[item.id] || item.label;
+              return <button key={item.id} onClick={() => { setMobileMoreOpen(false); onNavigate(item.id); }} className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-left text-xs font-bold ${page === item.id ? 'bg-teal-50 text-[#0D9488]' : 'text-slate-600 hover:bg-slate-50'}`}><Icon className="h-4 w-4" /><span>{label}</span></button>;
+            })}
+          </div>
+        </div>
+      )}
       <nav
         className="app-shell__mobile-nav fixed inset-x-0 bottom-0 z-30 flex justify-start gap-1 overflow-x-auto border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur-md lg:hidden"
         aria-label="Navegación principal"
       >
-        {items.map((item) => {
+        {mobilePrimaryItems.map((item) => {
           const Icon = item.icon;
           const selected = page === item.id;
           return (
@@ -215,6 +240,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             </button>
           );
         })}
+        {mobileMoreItems.length > 0 && <button onClick={() => setMobileMoreOpen((value) => !value)} aria-expanded={mobileMoreOpen} className={`app-shell__mobile-item grid min-w-0 flex-1 place-items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-bold transition-all ${mobileMoreSelected || mobileMoreOpen ? 'bg-teal-50 text-[#0D9488]' : 'text-slate-500 hover:text-slate-900'}`}><MoreHorizontal className="h-4 w-4" aria-hidden="true" /><span>Más</span></button>}
       </nav>
     </div>
   );

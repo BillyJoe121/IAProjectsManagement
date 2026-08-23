@@ -7,9 +7,11 @@ describe('operational follow-up rules', () => {
     expect(isTaskOverdue({ dueDate: '2026-08-01', status: 'completada' } as any, '2026-08-07')).toBe(false);
   });
 
-  it('puts critical and overdue issues in the monitor queue', () => {
-    expect(needsMonitorAttention({ priority: 'critica', status: 'abierta' } as any, '2026-08-07')).toBe(true);
-    expect(needsMonitorAttention({ priority: 'baja', status: 'resuelta' } as any, '2026-08-07')).toBe(false);
+  it('puts every unresolved issue in the monitor queue', () => {
+    expect(needsMonitorAttention({ priority: 'critica', status: 'abierta' } as any)).toBe(true);
+    expect(needsMonitorAttention({ priority: 'baja', status: 'abierta' } as any)).toBe(true);
+    expect(needsMonitorAttention({ priority: 'media', status: 'en_revision' } as any)).toBe(true);
+    expect(needsMonitorAttention({ priority: 'baja', status: 'resuelta' } as any)).toBe(false);
   });
 
   it('requires a minute only for completed meetings without one', () => {

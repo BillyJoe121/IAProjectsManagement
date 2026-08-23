@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Project } from '../types';
-import { X, Save, MessageCircle, Video, Github, Folder } from 'lucide-react';
+import { X, Save, MessageCircle, Video, Github } from 'lucide-react';
 
 interface EditLinksModalProps {
   project: Project;
@@ -13,7 +13,6 @@ export const EditLinksModal: React.FC<EditLinksModalProps> = ({ project, onClose
   const [whatsappUrl, setWhatsappUrl] = useState(project.whatsappUrl || '');
   const [teamsMeetingUrl, setTeamsMeetingUrl] = useState(project.teamsMeetingUrl || '');
   const [githubUrl, setGithubUrl] = useState(project.githubUrl || '');
-  const [driveFolderUrl, setDriveFolderUrl] = useState(project.driveFolderUrl || '');
 
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
@@ -31,8 +30,7 @@ export const EditLinksModal: React.FC<EditLinksModalProps> = ({ project, onClose
       whatsappUrl,
       teamsMeetingUrl,
       githubUrl,
-      driveFolderUrl,
-      emptyFieldsWarning: !(whatsappUrl && teamsMeetingUrl && githubUrl && driveFolderUrl),
+      emptyFieldsWarning: !(whatsappUrl && teamsMeetingUrl && githubUrl),
       lastActivityAt: new Date().toISOString(),
     };
 
@@ -99,20 +97,6 @@ export const EditLinksModal: React.FC<EditLinksModalProps> = ({ project, onClose
               placeholder="https://github.com/empresa/repo-ia"
               value={githubUrl}
               onChange={(e) => setGithubUrl(e.target.value)}
-              className="w-full border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-[#0D9488] focus:ring-2 focus:ring-[#0D9488]/20"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 flex items-center space-x-1.5 text-xs font-semibold text-slate-700">
-              <Folder className="h-4 w-4 text-sky-600" />
-              <span>Carpeta de Archivos en Google Drive:</span>
-            </label>
-            <input
-              type="url"
-              placeholder="https://drive.google.com/drive/folders/..."
-              value={driveFolderUrl}
-              onChange={(e) => setDriveFolderUrl(e.target.value)}
               className="w-full border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-[#0D9488] focus:ring-2 focus:ring-[#0D9488]/20"
             />
           </div>

@@ -40,7 +40,6 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
   const [whatsappUrl, setWhatsappUrl] = useState(projectToEdit?.whatsappUrl || '');
   const [teamsMeetingUrl, setTeamsMeetingUrl] = useState(projectToEdit?.teamsMeetingUrl || '');
   const [githubUrl, setGithubUrl] = useState(projectToEdit?.githubUrl || '');
-  const [driveFolderUrl, setDriveFolderUrl] = useState(projectToEdit?.driveFolderUrl || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +74,6 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
       whatsappUrl: whatsappUrl.trim() || undefined,
       teamsMeetingUrl: teamsMeetingUrl.trim() || undefined,
       githubUrl: githubUrl.trim() || undefined,
-      driveFolderUrl: driveFolderUrl.trim() || undefined,
       lastActivityAt: new Date().toISOString(),
     };
 

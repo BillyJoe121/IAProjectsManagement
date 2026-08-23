@@ -5,7 +5,6 @@ import {
   MessageCircle,
   Video,
   Github,
-  Folder,
   FileText,
   Clock,
   CheckCircle2,
@@ -217,28 +216,6 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* Google Drive Folder */}
-          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 p-3">
-            <div className="flex items-center space-x-2.5">
-              <Folder className="h-5 w-5 text-sky-600" />
-              <div>
-                <p className="text-[11px] font-semibold text-slate-400">Carpeta Google Drive</p>
-                {project.driveFolderUrl ? (
-                  <a
-                    href={project.driveFolderUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center space-x-1 text-xs font-bold text-sky-700 hover:underline"
-                  >
-                    <span>Ver Carpeta</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                ) : (
-                  <p className="text-xs italic text-amber-600">Pendiente por cargar</p>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Assigned Team & Organization Contacts */}

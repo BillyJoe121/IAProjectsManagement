@@ -14,6 +14,9 @@ interface AuthContextType {
   isLoading: boolean;
   isLocalDemo: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  requestAdminPasswordRecovery: (email: string) => Promise<void>;
+  changeAdminPassword: (password: string) => Promise<void>;
+  isPasswordRecovery: boolean;
   logout: () => Promise<void>;
   switchRoleToggle: () => void;
 }
@@ -32,6 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userId, setUserId] = useState(localDemoEnabled ? 'monitor-demo' : '');
   const [isAuthenticated, setIsAuthenticated] = useState(localDemoEnabled);
   const [isLoading, setIsLoading] = useState(!localDemoEnabled && Boolean(supabaseClient));
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   const loadUser = async (user: { id: string; email?: string | null } | null) => {
     if (!user || !supabaseClient) {
@@ -52,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (localDemoEnabled || !supabaseClient) { setIsLoading(false); return; }
     void supabaseClient.auth.getSession().then(({ data }) => loadUser(data.session?.user || null));
-    const { data: subscription } = supabaseClient.auth.onAuthStateChange((_event, session) => { void loadUser(session?.user || null); });
+    const { data: subscription } = supabaseClient.auth.onAuthStateChange((event, session) => { setIsPasswordRecovery(event === 'PASSWORD_RECOVERY'); void loadUser(session?.user || null); });
     return () => subscription.subscription.unsubscribe();
   }, []);
 
@@ -82,9 +86,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   const logout = async () => {
     if (localDemoEnabled) return;
+    // Mutations are authorized with the active user's JWT. Finish the outbox
+    // before replacing a student's session with a monitor's session, so a
+    // pending application cannot be rejected by RLS as an impersonated write.
     await SyncService.flush();
     await supabaseClient?.auth.signOut();
     await loadUser(null);
+  };
+  const requestAdminPasswordRecovery = async (email: string) => {
+    if (!supabaseClient) throw new Error('Supabase no está configurado en este entorno.');
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/` });
+    if (error) throw new Error(error.message);
+  };
+  const changeAdminPassword = async (password: string) => {
+    if (role !== 'superuser') throw new Error('Solo monitor o profesor puede cambiar la contraseña.');
+    if (password.length < 12) throw new Error('La contraseña debe tener al menos 12 caracteres.');
+    const { error } = await supabaseClient!.auth.updateUser({ password });
+    if (error) throw new Error(error.message);
+    setIsPasswordRecovery(false);
   };
   const switchRoleToggle = () => {
     if (!localDemoEnabled) return;
@@ -95,7 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  return <AuthContext.Provider value={{ role, userId, userEmail, userName, studentCode, assignedProjectId, isAuthenticated, isLoading, isLocalDemo: localDemoEnabled, signIn, logout, switchRoleToggle }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ role, userId, userEmail, userName, studentCode, assignedProjectId, isAuthenticated, isLoading, isLocalDemo: localDemoEnabled, signIn, logout, requestAdminPasswordRecovery, changeAdminPassword, isPasswordRecovery, switchRoleToggle }}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

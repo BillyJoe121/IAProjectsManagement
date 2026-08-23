@@ -8,6 +8,13 @@
 
 metadata:
   system_name: "IA Project Hub"
+  documentation_status: "LEGACY_REFERENCE"
+  canonical_current_sources:
+    - ".myconfig/SPEC.md"
+    - "README.md"
+    - "GUIA_DESPLIEGUE_RENDER.md"
+    - "supabase/migrations/"
+  current_architecture_note: "Las secciones históricas que mencionan Gemini, EmailJS o Vite 5 no describen el estado vigente. El código actual usa Vite 8, Supabase y Edge Functions con OpenAI; EmailJS no forma parte del flujo productivo."
   description: "Plataforma automatizada para la coordinación, monitoreo, análisis de reuniones con IA y gestión de 18 proyectos del curso de IA"
   version: "1.0.0"
   target_organization: "Universidad ICESI & Grupo Empresarial Cooperativo Coomeva"

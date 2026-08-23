@@ -6,12 +6,13 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { OperationsService } from './services/operationsService';
 import { SyncService, SyncState } from './services/syncService';
 
-const LoginScreenWithVisibility: React.FC<{ onSignIn: (email: string, password: string) => Promise<void> }> = ({ onSignIn }) => {
+const LoginScreenWithVisibility: React.FC<{ onSignIn: (email: string, password: string) => Promise<void>; onRecovery: (email: string) => Promise<void> }> = ({ onSignIn, onRecovery }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [recoverySent, setRecoverySent] = useState(false);
 
   return (
     <main className="grid min-h-screen place-items-center bg-[#F8FAFC] p-4">
@@ -101,6 +102,8 @@ const LoginScreenWithVisibility: React.FC<{ onSignIn: (email: string, password: 
           >
             {busy ? 'Ingresando…' : 'Ingresar'}
           </button>
+          <button type="button" disabled={busy} onClick={() => { if (!email.trim()) { setError('Ingresa tu correo institucional para recuperar la contraseña.'); return; } setBusy(true); setError(''); void onRecovery(email).then(() => setRecoverySent(true)).catch((caught) => setError(caught instanceof Error ? caught.message : 'No fue posible solicitar la recuperación.')).finally(() => setBusy(false)); }} className="mt-3 w-full text-center text-xs font-bold text-[#0D9488] hover:underline">¿Olvidaste tu contraseña? (solo monitor/profesor)</button>
+          {recoverySent && <p role="status" className="mt-3 rounded-xl bg-teal-50 p-3 text-xs text-teal-800">Si tu cuenta está autorizada, recibirás un correo con las instrucciones.</p>}
 
           <p className="mt-5 text-center text-[11px] text-slate-400">
             Coordinación Académica de Proyectos IA · Universidad Icesi
@@ -112,7 +115,10 @@ const LoginScreenWithVisibility: React.FC<{ onSignIn: (email: string, password: 
 };
 
 const Workspace: React.FC = () => {
-  const { role, userId, userName, userEmail, assignedProjectId, switchRoleToggle, isAuthenticated, isLoading, isLocalDemo, signIn, logout } = useAuth();
+  const { role, userId, userName, userEmail, assignedProjectId, switchRoleToggle, isAuthenticated, isLoading, isLocalDemo, signIn, logout, requestAdminPasswordRecovery, changeAdminPassword, isPasswordRecovery } = useAuth();
+  const [passwordModal, setPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const isMonitor = role === 'superuser';
   const [page, setPage] = useState<AppPage>('inicio');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -156,7 +162,8 @@ const Workspace: React.FC = () => {
     );
   }
 
-  if (!isAuthenticated) return <LoginScreenWithVisibility onSignIn={signIn} />;
+  if (!isAuthenticated) return <LoginScreenWithVisibility onSignIn={signIn} onRecovery={requestAdminPasswordRecovery} />;
+  if (isPasswordRecovery && role !== 'superuser') return <main className="grid min-h-screen place-items-center bg-slate-50 p-4"><section className="max-w-md rounded-2xl bg-white p-6 text-center shadow-sm"><h1 className="font-bold text-slate-900">Enlace no autorizado</h1><p className="mt-2 text-sm text-slate-600">La recuperación de contraseña está disponible únicamente para monitor y profesor.</p><button className="mt-4 text-sm font-bold text-[#0D9488]" onClick={() => void logout()}>Volver al inicio de sesión</button></section></main>;
 
   if (SyncService.isRemoteMode() && !dataReady) {
     return (
@@ -169,36 +176,19 @@ const Workspace: React.FC = () => {
             {syncState.error || 'Estamos aplicando tus permisos y preparando la información autorizada.'}
           </p>
           {syncState.status === 'error' && (
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <button
-                onClick={() => {
-                  setDataReady(false);
-                  void SyncService.bootstrap().then(() => {
-                    OperationsService.initialise();
-                    setDataReady(true);
-                    refresh();
-                  });
-                }}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#0D9488] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0F766E]"
-              >
-                Reintentar
-              </button>
-              <button
-                onClick={() => {
-                  if (!window.confirm('Se descartarán solo los cambios que este navegador no logró sincronizar. Los datos ya guardados en la plataforma no se eliminarán. ¿Continuar?')) return;
-                  SyncService.discardPendingChanges();
-                  setDataReady(false);
-                  void SyncService.bootstrap().then(() => {
-                    OperationsService.initialise();
-                    setDataReady(true);
-                    refresh();
-                  });
-                }}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
-              >
-                Recuperar cambios pendientes
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setDataReady(false);
+                void SyncService.bootstrap().then(() => {
+                  OperationsService.initialise();
+                  setDataReady(true);
+                  refresh();
+                });
+              }}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#0D9488] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0F766E]"
+            >
+              Reintentar
+            </button>
           )}
         </div>
       </div>
@@ -270,6 +260,10 @@ const Workspace: React.FC = () => {
                             void (async () => {
                               try {
                                 OperationsService.applyToProject(project.id, { id: userId, name: userName, email: userEmail });
+                                // The application must be stored with the student's session before
+                                // it is shown as pending. Otherwise, signing out immediately can
+                                // leave it in the local queue, where a later monitor session is not
+                                // allowed by RLS to create it on the student's behalf.
                                 await SyncService.flush();
                                 refresh();
                               } catch (caught) {
@@ -315,6 +309,7 @@ const Workspace: React.FC = () => {
 
   const canSwitchDemoRole = isLocalDemo && (import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ROLE_SWITCH === 'true');
   return (
+    <>
     <AppShell
       page={page}
       role={role}
@@ -327,11 +322,14 @@ const Workspace: React.FC = () => {
           window.alert(caught instanceof Error ? caught.message : 'No se pudo cerrar sesión porque hay cambios pendientes de sincronizar.');
         });
       }}
+      onChangePassword={isMonitor ? () => setPasswordModal(true) : undefined}
       onNavigate={(nextPage) => { setSelectedProjectId(null); setPage(nextPage); }}
       onSwitchDemoRole={() => { switchRoleToggle(); setSelectedProjectId(null); setPage('inicio'); }}
     >
       {content}
     </AppShell>
+    {(passwordModal || isPasswordRecovery) && <div className="fixed inset-0 z-[110] grid place-items-center bg-slate-950/50 p-4"><form onSubmit={(event) => { event.preventDefault(); setPasswordError(''); void changeAdminPassword(newPassword).then(() => { setPasswordModal(false); setNewPassword(''); }).catch((caught) => setPasswordError(caught instanceof Error ? caught.message : 'No fue posible cambiar la contraseña.')); }} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><h2 className="text-lg font-extrabold text-[#0E2C40]">Cambiar contraseña</h2><p className="mt-1 text-xs text-slate-500">Usa una contraseña nueva de al menos 12 caracteres.</p><input autoFocus required minLength={12} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="mt-4 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="Nueva contraseña" />{passwordError && <p role="alert" className="mt-2 text-xs text-rose-700">{passwordError}</p>}<div className="mt-4 flex justify-end gap-2"><button type="button" onClick={() => { setPasswordModal(false); }} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">Cancelar</button><button className="rounded-xl bg-[#0D9488] px-3 py-2 text-xs font-bold text-white">Guardar contraseña</button></div></form></div>}
+    </>
   );
 };
 

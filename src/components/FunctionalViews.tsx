@@ -45,11 +45,14 @@ import { OperationsService, taskPriorities, taskStatuses } from '../services/ope
 import { isTaskOverdue, meetingNeedsMinute, needsMonitorAttention, priorityLabel } from '../services/operationsRules';
 import { StorageService } from '../services/storageService';
 import { DocumentExportService } from '../services/documentExportService';
+import { ProjectArchiveService } from '../services/projectArchiveService';
 import { CalendarService } from '../services/calendarService';
 import { SyncService } from '../services/syncService';
 import { DocumentWorkflowService } from '../services/documentWorkflowService';
 import { AiLimitIncident, AiLimitIncidentService } from '../services/aiLimitIncidentService';
 import { INSTITUTIONAL_TEMPLATES, templateByType } from '../data/institutionalTemplates';
+import { ProjectBrief } from './ProjectBrief';
+import { HtmlPagePreview } from './DocumentPagePreview';
 
 export const formatDate = (value?: string) => {
   if (!value) return 'Sin fecha';
@@ -129,8 +132,8 @@ const Modal: React.FC<{
           noScroll ? 'overflow-hidden' : 'overflow-y-auto'
         }`}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-6 py-4 backdrop-blur-sm">
-          <h2 className="text-base font-extrabold text-[#0E2C40]">{title}</h2>
+        <div className="sticky top-0 z-10 flex min-w-0 items-center justify-between gap-3 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur-sm sm:px-6 sm:py-4">
+          <h2 className="min-w-0 text-base font-extrabold text-[#0E2C40]">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -140,7 +143,7 @@ const Modal: React.FC<{
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6">{children}</div>
       </div>
     </div>,
     document.body
@@ -413,6 +416,26 @@ interface Common {
   onOpenProject: (id: string, target?: 'resumen' | 'reuniones') => void;
 }
 
+const ProjectArchiveButton: React.FC<{ projects: Project[]; label: string; className?: string }> = ({ projects, label, className }) => {
+  const [busy, setBusy] = useState(false);
+  const exportArchive = async () => {
+    setBusy(true);
+    try {
+      const result = await ProjectArchiveService.exportAll(projects, OperationsService.getMinutes(), OperationsService.getDocuments());
+      ProjectArchiveService.download(result);
+      if (result.warnings.length) window.alert(`El ZIP fue descargado, pero ${result.warnings.length} archivo(s) no estaban disponibles. Revisa NOTAS-DE-EXPORTACION.txt dentro del ZIP.`);
+    } catch (caught) {
+      window.alert(caught instanceof Error ? caught.message : 'No fue posible crear el ZIP.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <Button tone="secondary" className={className} disabled={busy || !projects.length} onClick={() => void exportArchive()}>
+    <Download className="h-4 w-4" />
+    {busy ? 'Preparando ZIP…' : label}
+  </Button>;
+};
+
 const limitWindowLabel: Record<AiLimitIncident['limitWindow'], string> = {
   minute: '3 llamadas/minuto',
   hour: '10 llamadas/hora',
@@ -581,7 +604,8 @@ export const ProjectsView: React.FC<Common> = ({ projects, onOpenProject, onChan
 
   return (
     <div className="projects-view mx-auto max-w-6xl space-y-5">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <ProjectArchiveButton projects={projects} label="Exportar todos los proyectos" />
         <Button onClick={() => setCreate(true)}>
           <Plus className="h-4 w-4" />
           Nuevo proyecto
@@ -684,37 +708,37 @@ export const ProjectsView: React.FC<Common> = ({ projects, onOpenProject, onChan
         <RiskFilter value={risk} onChange={setRisk} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((project) => {
           const openTasks = OperationsService.getTasks(project.id).filter((task) => task.status !== 'completada').length;
           const openIssues = OperationsService.getIssues(project.id).filter((issue) => issue.status !== 'resuelta').length;
           return (
-            <Card key={project.id} className="project-card p-5" onClick={() => onOpenProject(project.id)}>
+            <Card key={project.id} className="project-card p-3 sm:p-5" onClick={() => onOpenProject(project.id)}>
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 sm:flex-1">
                   <div className="flex items-center gap-2">
                     <Badge tone={project.riskLevel === 'rojo' ? 'red' : project.riskLevel === 'amarillo' ? 'amber' : 'green'}>
                       {project.code}
                     </Badge>
-                    <span className="text-xs font-medium text-slate-400">{project.companyName}</span>
+                    <span className="truncate text-[10px] font-medium text-slate-400 sm:text-xs">{project.companyName}</span>
                   </div>
-                  <h2 className="mt-3 line-clamp-2 font-medium text-slate-700">{project.title}</h2>
+                  <h2 className="mt-2 line-clamp-2 text-sm font-medium leading-snug text-slate-700 sm:mt-3 sm:text-base">{project.title}</h2>
                 </div>
               </div>
-              <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-xl bg-slate-50/80 p-2.5">
+              <div className="mt-3 grid grid-cols-3 gap-1 text-center sm:mt-5 sm:gap-2">
+                <div className="rounded-xl bg-slate-50/80 p-1.5 sm:p-2.5">
                   <b className="block text-sm text-[#0E2C40]">
                     {project.assignedStudents.length}/{project.maxStudents}
                   </b>
-                  <small className="text-[11px] font-medium text-slate-400">equipo</small>
+                  <small className="text-[9px] font-medium text-slate-400 sm:text-[11px]">equipo</small>
                 </div>
-                <div className="rounded-xl bg-slate-50/80 p-2.5">
+                <div className="rounded-xl bg-slate-50/80 p-1.5 sm:p-2.5">
                   <b className="block text-sm text-[#0E2C40]">{openTasks}</b>
-                  <small className="text-[11px] font-medium text-slate-400">tareas</small>
+                  <small className="text-[9px] font-medium text-slate-400 sm:text-[11px]">tareas</small>
                 </div>
-                <div className="rounded-xl bg-slate-50/80 p-2.5">
+                <div className="rounded-xl bg-slate-50/80 p-1.5 sm:p-2.5">
                   <b className="block text-sm text-[#0E2C40]">{openIssues}</b>
-                  <small className="text-[11px] font-medium text-slate-400">incidencias</small>
+                  <small className="text-[9px] font-medium text-slate-400 sm:text-[11px]">incidencias</small>
                 </div>
               </div>
             </Card>
@@ -1005,15 +1029,6 @@ const ProjectEditForm: React.FC<{ project: Project; onDone: (project: Project) =
             />
           </label>
           <label className="text-xs font-bold text-slate-700">
-            Drive
-            <input
-              type="url"
-              value={draft.driveFolderUrl || ''}
-              onChange={(event) => update('driveFolderUrl', event.target.value || undefined)}
-              className={`${inputClass} mt-1`}
-            />
-          </label>
-          <label className="text-xs font-bold text-slate-700">
             GitHub
             <input
               type="url"
@@ -1114,8 +1129,8 @@ export const TasksView: React.FC<Common & { projectId?: string; isMonitor?: bool
       <Card className="overflow-visible p-0">
         <div className="divide-y divide-slate-100">
           {tasks.map((task) => (
-            <div key={task.id} className="relative flex flex-wrap items-center gap-3 p-4 transition hover:bg-slate-50/50">
-              <div className="dynamic-copy min-w-[220px] flex-1">
+            <div key={task.id} className="relative flex flex-wrap items-center gap-2 p-3 sm:gap-3 sm:p-4 transition hover:bg-slate-50/50">
+              <div className="dynamic-copy min-w-0 basis-full flex-1 sm:min-w-[220px] sm:basis-auto">
                 <b className={`block text-sm font-bold ${task.status === 'completada' ? 'text-slate-400 line-through' : 'text-[#0E2C40]'}`}>
                   {task.title}
                 </b>
@@ -1124,9 +1139,9 @@ export const TasksView: React.FC<Common & { projectId?: string; isMonitor?: bool
                   {projectCode(projects, task.projectId)} · {task.assigneeName} · {formatDate(task.dueDate)} · fuente: {task.source}
                 </p>
               </div>
-              <Badge tone={isTaskOverdue(task) ? 'red' : task.priority === 'alta' || task.priority === 'critica' ? 'amber' : 'slate'}>
-                {isTaskOverdue(task) ? 'vencida' : priorityLabel[task.priority]}
-              </Badge>
+              <span className="text-xs font-semibold text-slate-600">
+                {isTaskOverdue(task) ? 'Vencida' : priorityLabel[task.priority]}
+              </span>
               <ChoiceMenu
                 value={task.status}
                 onChange={(value) => {
@@ -1134,7 +1149,7 @@ export const TasksView: React.FC<Common & { projectId?: string; isMonitor?: bool
                   onChanged();
                 }}
                 ariaLabel={`Estado de ${task.title}`}
-                className="z-20 w-36"
+                className="w-36"
                 options={taskStatuses.map((status) => ({ value: status, label: status.replace('_', ' ') }))}
               />
               <Button
@@ -1152,18 +1167,20 @@ export const TasksView: React.FC<Common & { projectId?: string; isMonitor?: bool
                   Ver
                 </Button>
               )}
-              <Button
-                tone="ghost"
-                aria-label={`Eliminar ${task.title}`}
-                onClick={() => {
-                  if (window.confirm('¿Eliminar esta tarea?')) {
-                    OperationsService.deleteTask(task.id);
-                    onChanged();
-                  }
-                }}
-              >
-                <Trash2 className="h-4 w-4 text-rose-500" />
-              </Button>
+              {isMonitor && (
+                <Button
+                  tone="ghost"
+                  aria-label={`Eliminar ${task.title}`}
+                  onClick={() => {
+                    if (window.confirm('¿Eliminar esta tarea?')) {
+                      OperationsService.deleteTask(task.id);
+                      onChanged();
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 text-rose-500" />
+                </Button>
+              )}
             </div>
           ))}
           {!tasks.length && (
@@ -1313,7 +1330,7 @@ export const IssuesView: React.FC<Common & { projectId?: string; isStudent?: boo
 
       <div className="grid gap-4 md:grid-cols-2">
         {issues.map((issue) => (
-          <Card key={issue.id} className="flex flex-col justify-between">
+          <Card key={issue.id} className="issue-card flex flex-col justify-between p-3 sm:p-5">
             <div>
               <div className="flex items-start justify-between gap-3">
                 <div className="dynamic-copy">
@@ -1322,11 +1339,9 @@ export const IssuesView: React.FC<Common & { projectId?: string; isStudent?: boo
                     {projectCode(projects, issue.projectId)} · {issue.category.replace('_', ' ')} · {formatDate(issue.createdAt)}
                   </p>
                 </div>
-                <Badge tone={issue.priority === 'alta' || issue.priority === 'critica' ? 'red' : 'amber'}>
-                  {priorityLabel[issue.priority]}
-                </Badge>
+                <span className="text-xs font-semibold text-slate-600">{priorityLabel[issue.priority]}</span>
               </div>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">{issue.description}</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600 sm:mt-3 sm:text-sm">{issue.description}</p>
               {issue.resolution && (
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-900">
                   <b className="font-bold">Resolución:</b> {issue.resolution}
@@ -1779,6 +1794,7 @@ export const MeetingsView: React.FC<Common & { projectId?: string; isMonitor?: b
   const [editingMeeting, setEditingMeeting] = useState<ProjectMeeting | null>(null);
   const [agendaView, setAgendaView] = useState<'lista' | 'calendario'>('lista');
   const [globalProject, setGlobalProject] = useState(projectId || projects[0]?.id || '');
+  const [standaloneActa, setStandaloneActa] = useState(false);
   const [calendarBusy, setCalendarBusy] = useState<string | null>(null);
   const [batchCalendarBusy, setBatchCalendarBusy] = useState(false);
   const [calendarEmbedVersion, setCalendarEmbedVersion] = useState(0);
@@ -1803,17 +1819,13 @@ export const MeetingsView: React.FC<Common & { projectId?: string; isMonitor?: b
     }
   };
 
-  const changeStatus = async (meeting: ProjectMeeting, status: ProjectMeeting['status']) => {
+  const changeStatus = (meeting: ProjectMeeting, status: ProjectMeeting['status']) => {
     try {
       const updated = OperationsService.updateMeetingStatus(meeting.id, status);
       onChanged();
-      // Persist the status before Calendar (and the Realtime refresh it
-      // triggers) can read the meeting. This prevents an optimistic local
-      // state from being replaced with the older row from Supabase.
-      if (SyncService.isRemoteMode()) await SyncService.flush();
       if (updated && SyncService.isRemoteMode()) {
         const action = status === 'cancelada' || status === 'no_realizada' ? 'cancel' : 'upsert';
-        await syncCalendar(updated, action);
+        void syncCalendar(updated, action);
       }
     } catch (caught) {
       window.alert(caught instanceof Error ? caught.message : 'No se pudo cambiar el estado.');
@@ -1925,6 +1937,22 @@ export const MeetingsView: React.FC<Common & { projectId?: string; isMonitor?: b
         </div>
       </div>
 
+      {projectId && project && (
+        <div>
+          <Button tone="secondary" onClick={() => setStandaloneActa((value) => !value)}>
+            {standaloneActa ? 'Ocultar carga' : 'Crear acta desde TXT sin reunión'}
+          </Button>
+          {standaloneActa && (
+            <ActaUploader
+              project={project}
+              onDone={() => {
+                setStandaloneActa(false);
+                onChanged();
+              }}
+            />
+          )}
+        </div>
+      )}
 
       {isMonitor && agendaView === 'calendario' ? (
         <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -1946,14 +1974,14 @@ export const MeetingsView: React.FC<Common & { projectId?: string; isMonitor?: b
             {meetings.map((meeting) => {
               const meetingProject = projects.find((item) => item.id === meeting.projectId);
               return (
-                <Card key={meeting.id} className="p-5">
+                <Card key={meeting.id} className="agenda-card p-3 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h2 className="font-extrabold text-[#0E2C40]">{meeting.title}</h2>
+                      <h2 className="text-sm font-extrabold text-[#0E2C40] sm:text-base">{meeting.title}</h2>
                       <p className="mt-1 text-xs text-slate-400">
                         {projectCode(projects, meeting.projectId)} · {formatDate(meeting.startsAt)} · {meeting.durationMinutes} min
                       </p>
-                      {meeting.agenda && <p className="mt-2 text-sm text-slate-600">{meeting.agenda}</p>}
+                      {meeting.agenda && <p className="mt-2 text-xs text-slate-600 sm:text-sm">{meeting.agenda}</p>}
                       {meeting.meetingUrl && (
                         <a
                           className="mt-2 inline-block text-xs font-bold text-teal-700 underline hover:text-teal-900"
@@ -1976,20 +2004,20 @@ export const MeetingsView: React.FC<Common & { projectId?: string; isMonitor?: b
                         <Button tone="secondary" onClick={() => setEditingMeeting(meeting)}>
                           Editar
                         </Button>
-                        <Button tone="secondary" onClick={() => void changeStatus(meeting, 'realizada')}>
+                        <Button tone="secondary" onClick={() => changeStatus(meeting, 'realizada')}>
                           <Check className="h-4 w-4" />
                           Realizada
                         </Button>
-                        <Button tone="secondary" onClick={() => void changeStatus(meeting, 'no_realizada')}>
+                        <Button tone="secondary" onClick={() => changeStatus(meeting, 'no_realizada')}>
                           No realizada
                         </Button>
-                        <Button tone="secondary" onClick={() => void changeStatus(meeting, 'cancelada')}>
+                        <Button tone="secondary" onClick={() => changeStatus(meeting, 'cancelada')}>
                           Cancelar
                         </Button>
                       </>
                     )}
                     {(meeting.status === 'cancelada' || meeting.status === 'no_realizada') && (
-                      <Button tone="secondary" onClick={() => void changeStatus(meeting, 'reprogramada')}>
+                      <Button tone="secondary" onClick={() => changeStatus(meeting, 'reprogramada')}>
                         Reprogramar
                       </Button>
                     )}
@@ -2163,7 +2191,7 @@ const TemplateEditor: React.FC<{ onDone: () => void }> = ({ onDone }) => {
         )}
       </div>
       {current?.htmlTemplate && (
-        <iframe title="Vista previa de la plantilla" sandbox="" srcDoc={current.htmlTemplate} className="h-[560px] w-full rounded-xl border border-slate-200 bg-white" />
+        <HtmlPagePreview title="Vista previa de la plantilla" html={current.htmlTemplate} />
       )}
       <Modal open={editing} title={`Editar HTML · ${name}`} noScroll size="max-w-6xl" onClose={() => setEditing(false)}>
         <div className="space-y-3">
@@ -2212,6 +2240,7 @@ export const DocumentsView: React.FC<Common & { projectId?: string; isMonitor?: 
   const [fileInputKey, setFileInputKey] = useState(0);
   const [panel, setPanel] = useState<'create' | 'generated' | 'templates' | null>('generated');
   const selectedId = projectId || globalProject;
+  const exportableProjects = projectId ? projects.filter((project) => project.id === projectId) : projects;
   const allDocuments = OperationsService.getDocuments();
   const template = templateByType(documentType) || INSTITUTIONAL_TEMPLATES[0];
 
@@ -2487,6 +2516,7 @@ export const DocumentsView: React.FC<Common & { projectId?: string; isMonitor?: 
         <Button tone="secondary" onClick={() => setPanel('generated')}>
           Documentos generados
         </Button>
+        <ProjectArchiveButton projects={exportableProjects} label={projectId ? 'Exportar este proyecto' : 'Exportar proyectos'} />
         {isMonitor && !projectId && (
           <Button tone="secondary" onClick={() => setPanel('templates')}>
             Plantillas institucionales
@@ -2527,12 +2557,7 @@ export const DocumentsView: React.FC<Common & { projectId?: string; isMonitor?: 
             </Button>
           </div>
           <div className="grid gap-5 xl:grid-cols-[1fr_300px]">
-            <iframe
-              title={`Vista previa de ${preview.title}`}
-              sandbox=""
-              srcDoc={preview.htmlPreview}
-              className="h-[680px] w-full rounded-2xl border border-slate-200 bg-white"
-            />
+            <HtmlPagePreview title={`Vista previa de ${preview.title}`} html={preview.htmlPreview} />
             <aside className="space-y-4">
               <div>
                 <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Solicitar cambios a la IA</h3>
@@ -2656,53 +2681,8 @@ const TeamManager: React.FC<{ project: Project; projects: Project[]; onDone: () 
   );
 };
 
-const ProjectSummary: React.FC<{
-  project: Project;
-  links: ProjectResourceLink[];
-  activity: ReturnType<typeof OperationsService.getActivity>;
-  onAddLink: () => void;
-  onContacts: () => void;
-}> = ({ project, links, activity, onAddLink, onContacts }) => (
+const ProjectSummary: React.FC<{ activity: ReturnType<typeof OperationsService.getActivity> }> = ({ activity }) => (
   <div className="grid gap-4 lg:grid-cols-2">
-    <Card className="lg:col-span-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-extrabold text-[#0E2C40]">Enlaces del proyecto</h2>
-        <div className="flex flex-wrap gap-2">
-          <Button tone="secondary" onClick={onContacts}>
-            Contactos de organización
-          </Button>
-          <Button tone="secondary" onClick={onAddLink}>
-            Nuevo enlace
-          </Button>
-        </div>
-      </div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {links.map((link) => (
-          <a
-            key={link.id}
-            href={link.url}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-bold text-[#0E2C40] transition hover:border-[#0D9488] hover:bg-teal-50/40"
-          >
-            <LinkIcon className="h-4 w-4 text-[#0D9488]" />
-            <span className="truncate">{link.label}</span>
-          </a>
-        ))}
-        <button
-          type="button"
-          onClick={onContacts}
-          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-left text-sm font-bold text-[#0E2C40] transition hover:border-[#0D9488] hover:bg-teal-50/40"
-        >
-          <Users className="h-4 w-4 text-[#0D9488]" />
-          <span>Contactos de organización</span>
-          <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-            {project.contacts.length}
-          </span>
-        </button>
-        {!links.length && <p className="text-sm text-slate-400">Aún no hay enlaces registrados.</p>}
-      </div>
-    </Card>
     <Card className="lg:col-span-2">
       <h2 className="font-extrabold text-[#0E2C40]">Actividad reciente</h2>
       <div className="mt-3 divide-y divide-slate-100">
@@ -2718,13 +2698,12 @@ const ProjectSummary: React.FC<{
   </div>
 );
 
-type ProjectLinkField = 'whatsappUrl' | 'teamsMeetingUrl' | 'githubUrl' | 'driveFolderUrl';
+type ProjectLinkField = 'whatsappUrl' | 'teamsMeetingUrl' | 'githubUrl';
 type EditableProjectLink = ProjectResourceLink & { kind: 'custom' | 'fixed'; field?: ProjectLinkField };
 
 const fixedProjectLinks = (project: Project): EditableProjectLink[] =>
   [
     { id: 'whatsapp', label: 'WhatsApp', url: project.whatsappUrl || '', field: 'whatsappUrl' },
-    { id: 'drive', label: 'Carpeta Drive', url: project.driveFolderUrl || '', field: 'driveFolderUrl' },
     { id: 'github', label: 'GitHub', url: project.githubUrl || '', field: 'githubUrl' },
     { id: 'teams', label: 'Teams', url: project.teamsMeetingUrl || '', field: 'teamsMeetingUrl' },
   ]
@@ -2740,7 +2719,7 @@ const isHttpLink = (value: string) => {
   }
 };
 
-const ProjectLinksManager: React.FC<{ project: Project; onChanged: () => void }> = ({ project, onChanged }) => {
+const ProjectLinksManager: React.FC<{ project: Project; onChanged: () => void; onContacts: () => void }> = ({ project, onChanged, onContacts }) => {
   const [editing, setEditing] = useState<EditableProjectLink | 'new' | null>(null);
   const [label, setLabel] = useState('');
   const [url, setUrl] = useState('');
@@ -2775,7 +2754,7 @@ const ProjectLinksManager: React.FC<{ project: Project; onChanged: () => void }>
         : editing?.kind === 'custom'
           ? (project.resourceLinks || []).map((link) => (link.id === editing.id ? { ...link, label: cleanLabel, url: cleanUrl } : link))
           : project.resourceLinks || [];
-    const patch: Pick<Project, 'resourceLinks' | 'whatsappUrl' | 'teamsMeetingUrl' | 'githubUrl' | 'driveFolderUrl'> = { resourceLinks };
+    const patch: Pick<Project, 'resourceLinks' | 'whatsappUrl' | 'teamsMeetingUrl' | 'githubUrl'> = { resourceLinks };
     if (editing !== 'new' && editing?.kind === 'fixed' && editing.field) patch[editing.field] = cleanUrl;
     OperationsService.updateProjectLinks(project.id, patch);
     setEditing(null);
@@ -2784,7 +2763,7 @@ const ProjectLinksManager: React.FC<{ project: Project; onChanged: () => void }>
 
   const remove = (link: EditableProjectLink) => {
     if (!window.confirm(`¿Eliminar el enlace ${link.label}?`)) return;
-    const patch: Pick<Project, 'resourceLinks' | 'whatsappUrl' | 'teamsMeetingUrl' | 'githubUrl' | 'driveFolderUrl'> = {
+    const patch: Pick<Project, 'resourceLinks' | 'whatsappUrl' | 'teamsMeetingUrl' | 'githubUrl'> = {
       resourceLinks: link.kind === 'custom' ? (project.resourceLinks || []).filter((item) => item.id !== link.id) : project.resourceLinks || [],
     };
     if (link.kind === 'fixed' && link.field) patch[link.field] = undefined;
@@ -2796,15 +2775,13 @@ const ProjectLinksManager: React.FC<{ project: Project; onChanged: () => void }>
     <Card className="mb-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-extrabold text-[#0E2C40]">Gestionar enlaces compartidos</h2>
-          <p className="mt-1 text-xs text-slate-500">Los cambios son visibles para todo el equipo.</p>
+          <h2 className="font-extrabold text-[#0E2C40]">Enlaces del proyecto</h2>
+          <p className="mt-1 text-xs text-slate-500">Recursos y accesos compartidos del equipo.</p>
         </div>
-        <Button tone="secondary" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo enlace
-        </Button>
+        <div className="flex flex-wrap gap-2"><Button tone="secondary" onClick={onContacts}>Contactos</Button><Button tone="secondary" onClick={openCreate}><Plus className="h-4 w-4" />Nuevo enlace</Button></div>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <ProjectBrief project={project} onChanged={onChanged} />
         {links.map((link) => (
           <div key={`${link.kind}-${link.id}`} className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 p-3">
             <LinkIcon className="h-4 w-4 shrink-0 text-[#0D9488]" />
@@ -2896,10 +2873,10 @@ const TeamPendingActions: React.FC<{ projectId: string; onOpenMeetings: () => vo
             type="button"
             key={`${action.detail}-${action.id}`}
             onClick={action.onClick}
-            className={`flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left ${action.onClick ? 'transition hover:border-teal-200 hover:bg-teal-50/30' : 'cursor-default'}`}
+            className={`flex w-full min-w-0 items-start gap-2 rounded-xl border border-slate-100 p-2.5 text-left sm:items-center sm:gap-3 sm:p-3 ${action.onClick ? 'transition hover:border-teal-200 hover:bg-teal-50/30' : 'cursor-default'}`}
           >
             <Badge tone={action.tone}>{action.detail}</Badge>
-            <b className="min-w-0 flex-1 truncate text-sm text-[#0E2C40]">{action.label}</b>
+            <b className="min-w-0 flex-1 break-words text-xs leading-snug text-[#0E2C40] sm:text-sm">{action.label}</b>
             {action.onClick && <ChevronRight className="h-4 w-4 text-slate-400" />}
           </button>
         ))}
@@ -2934,7 +2911,6 @@ export const ProjectDetail: React.FC<Common & { projectId: string; onBack?: () =
   const tabs = ['resumen', 'tareas', 'reuniones', 'incidencias', 'documentos', 'equipo'] as const;
   const staticLinks: ProjectResourceLink[] = [
     { id: 'whatsapp', label: 'WhatsApp', url: project.whatsappUrl || '' },
-    { id: 'drive', label: 'Carpeta Drive', url: project.driveFolderUrl || '' },
     { id: 'github', label: 'GitHub', url: project.githubUrl || '' },
     { id: 'teams', label: 'Teams', url: project.teamsMeetingUrl || '' },
   ].filter((item) => item.url);
@@ -2975,16 +2951,14 @@ export const ProjectDetail: React.FC<Common & { projectId: string; onBack?: () =
             <Badge tone={project.riskLevel === 'rojo' ? 'red' : project.riskLevel === 'amarillo' ? 'amber' : 'green'}>
               {project.code}
             </Badge>
-            <h1 className="mt-2 text-2xl font-medium text-slate-700">{project.title}</h1>
+            <h1 className="mt-2 text-xl font-medium leading-tight text-slate-700 sm:text-2xl">{project.title}</h1>
             <p className="mt-1 text-sm text-slate-500">
               {project.companyName} · equipo de {project.assignedStudents.length} personas · avance {project.progressPct}%
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button tone="secondary" onClick={() => setLinkModal(true)}>
-              <Plus className="h-4 w-4" />
-              Agregar enlace
-            </Button>
+            <ProjectArchiveButton projects={[project]} label="Exportar este proyecto" />
+            <ProjectArchiveButton projects={isMonitor ? projects : [project]} label={isMonitor ? 'Exportar todos los proyectos' : 'Exportar mis proyectos'} />
             {isMonitor && (
               <Button onClick={() => setEditModal(true)}>
                 <Pencil className="h-4 w-4" />
@@ -3004,12 +2978,12 @@ export const ProjectDetail: React.FC<Common & { projectId: string; onBack?: () =
             <b className="text-slate-900">{OperationsService.getMeetings(project.id).filter(meetingNeedsMinute).length}</b> actas pendientes
           </span>
         </div>
-        <div className="mt-4 flex gap-1 overflow-x-auto border-t border-slate-100 pt-3">
+        <div className="mt-4 grid grid-cols-3 gap-1 border-t border-slate-100 pt-3 sm:flex">
           {tabs.map((item) => (
             <button
               key={item}
               onClick={() => setTab(item)}
-              className={`rounded-xl px-3.5 py-2 text-xs font-bold capitalize transition ${
+              className={`min-w-0 rounded-xl px-2 py-2 text-[11px] font-bold capitalize transition sm:px-3.5 sm:text-xs ${
                 tab === item ? 'bg-teal-50 text-[#0D9488]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
               }`}
             >
@@ -3019,17 +2993,13 @@ export const ProjectDetail: React.FC<Common & { projectId: string; onBack?: () =
         </div>
       </Card>
 
+      {tab === 'resumen' && <ProjectLinksManager project={project} onChanged={onChanged} onContacts={() => setContactModal(true)} />}
+
       <div>
         {tab === 'resumen' && (
           <>
+            <ProjectSummary activity={activity} />
             {!isMonitor && <TeamPendingActions projectId={project.id} onOpenMeetings={() => setTab('reuniones')} />}
-            <ProjectSummary
-              project={project}
-              links={links}
-              activity={activity}
-              onAddLink={() => setLinkModal(true)}
-              onContacts={() => setContactModal(true)}
-            />
           </>
         )}
         {tab === 'tareas' && <TasksView projects={projects} projectId={project.id} isMonitor={isMonitor} onChanged={onChanged} onOpenProject={onOpenProject} />}
@@ -3262,21 +3232,19 @@ export const PeopleView: React.FC<Common> = ({ projects, onChanged }) => {
           {visibleStudents.map((student) => {
             const project = currentProject(student);
             return (
-              <div key={student.email} className="flex flex-wrap items-center gap-3 p-4 transition hover:bg-slate-50/50">
-                <div className="min-w-0 flex-1">
-                  <b className="block text-sm text-[#0E2C40]">{student.name}</b>
-                  <small className="block text-slate-400">
-                    {student.code || 'Sin código'} · {student.email}
-                  </small>
+              <div key={student.email} className="people-row grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-2 p-3 sm:flex sm:flex-wrap sm:items-center sm:gap-3 sm:p-4 transition hover:bg-slate-50/50">
+                <div className="min-w-0 sm:flex-1">
+                  <b className="block truncate text-sm text-[#0E2C40]">{student.name}</b>
+                  <small className="mt-0.5 block truncate text-[11px] text-slate-400 sm:text-xs">{student.email}</small>
                 </div>
-                {project ? <Badge tone="indigo">{project.code}</Badge> : <Badge tone="amber">Sin proyecto</Badge>}
+                <div className="justify-self-end text-right"><small className="mb-1 block text-[10px] font-semibold text-slate-400">{student.code || 'Sin código'}</small>{project ? <Badge tone="indigo">{project.code}</Badge> : <Badge tone="amber">Sin proyecto</Badge>}</div>
                 {!project && (
-                  <Button onClick={() => openAssign(student)}>
+                  <Button className="min-h-10 sm:ml-auto" onClick={() => openAssign(student)}>
                     <UserPlus className="h-4 w-4" />
                     Asignar proyecto
                   </Button>
                 )}
-                <Button
+                  <Button className="min-h-10"
                   tone="secondary"
                   onClick={() => {
                     setSelectedStudent(student);

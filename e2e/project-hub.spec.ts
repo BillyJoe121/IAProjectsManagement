@@ -80,6 +80,42 @@ test('student remains scoped and does not receive destructive task controls', as
   await expect(page.getByRole('button', { name: 'Proyectos', exact: true })).toHaveCount(0);
 });
 
+test('team members can add, edit and delete a shared project link', async ({ page }) => {
+  await page.getByRole('button', { name: 'Proyectos', exact: true }).click();
+  await page.locator('section[role="button"]').first().click();
+  await page.getByRole('button', { name: 'Nuevo enlace', exact: true }).first().click();
+  const createDialog = page.getByRole('dialog', { name: 'Agregar enlace' });
+  await createDialog.getByLabel('Nombre').fill('Repositorio E2E');
+  await createDialog.getByLabel('URL').fill('https://github.com/icesi/e2e');
+  await createDialog.getByRole('button', { name: 'Guardar enlace', exact: true }).click();
+  await expect(page.getByText('Repositorio E2E', { exact: true }).first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Editar enlace Repositorio E2E' }).click();
+  const editDialog = page.getByRole('dialog', { name: 'Editar enlace' });
+  await editDialog.getByLabel('URL').fill('https://github.com/icesi/e2e-actualizado');
+  await editDialog.getByRole('button', { name: 'Guardar enlace', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Repositorio E2E', exact: true }).first()).toHaveAttribute('href', 'https://github.com/icesi/e2e-actualizado');
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Eliminar enlace Repositorio E2E' }).click();
+  await expect(page.getByText('Repositorio E2E', { exact: true })).toHaveCount(0);
+});
+
+test('a student can resolve an issue created by another member of the same project', async ({ page }) => {
+  await page.getByRole('button', { name: 'Proyectos', exact: true }).click();
+  await page.locator('section[role="button"]').first().click();
+  await page.getByRole('button', { name: 'incidencias', exact: true }).click();
+  await page.getByRole('button', { name: 'Reportar incidente', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Reportar incidente' });
+  await dialog.getByLabel('Título').fill('Incidencia del compañero');
+  await dialog.getByLabel('Contexto').fill('La incidencia fue registrada por otro integrante del equipo.');
+  await dialog.getByRole('button', { name: /Enviar al monitor/ }).click();
+  await page.getByRole('button', { name: 'Vista estudiante demo', exact: true }).click();
+  await page.getByRole('button', { name: 'incidencias', exact: true }).click();
+  await page.getByRole('button', { name: 'Marcar resuelta', exact: true }).click();
+  await expect(page.getByText(/Incidencia marcada como resuelta/)).toBeVisible();
+});
+
 test('mobile navigation exposes every monitor section without page overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('button', { name: 'Reportes', exact: true })).toBeAttached();

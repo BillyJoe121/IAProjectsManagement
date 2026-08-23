@@ -33,7 +33,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({ projects, onClose }) =
       WhatsApp: p.whatsappUrl || 'Sin Wapp',
       TeamsMeeting: p.teamsMeetingUrl || 'Sin Teams',
       GitHub: p.githubUrl || 'Sin GitHub',
-      Drive: p.driveFolderUrl || 'Sin Drive',
       Estudiantes: p.assignedStudents.map((s) => s.name).join('; '),
     }));
 

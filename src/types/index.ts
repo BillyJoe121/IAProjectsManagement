@@ -65,6 +65,9 @@ export interface Project {
   finalReportUrl?: string;
   baselineDocUrl?: string;
   resourceLinks?: ProjectResourceLink[];
+  briefFileName?: string;
+  briefStoragePath?: string;
+  briefUploadedAt?: string;
   
   // Activity Timeline & Empty Warning
   lastActivityAt: string; // ISO date

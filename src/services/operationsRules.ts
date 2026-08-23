@@ -3,8 +3,7 @@ import { MeetingStatus, ProjectIssue, ProjectMeeting, ProjectTask, TaskPriority 
 export const isTaskOverdue = (task: ProjectTask, today = new Date().toISOString().slice(0, 10)): boolean =>
   Boolean(task.dueDate && task.dueDate < today && task.status !== 'completada');
 
-export const needsMonitorAttention = (issue: ProjectIssue, today = new Date().toISOString().slice(0, 10)): boolean =>
-  issue.status !== 'resuelta' && (issue.priority === 'alta' || issue.priority === 'critica' || Boolean(issue.dueDate && issue.dueDate < today));
+export const needsMonitorAttention = (issue: ProjectIssue): boolean => issue.status !== 'resuelta';
 
 export const meetingNeedsMinute = (meeting: ProjectMeeting): boolean => meeting.status === 'realizada' && !meeting.minuteId;
 

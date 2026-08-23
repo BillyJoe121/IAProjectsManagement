@@ -85,6 +85,11 @@ export const OperationsService = {
     AuditService.record({ projectId, entityType: 'project', entityId: projectId, action: 'update', beforeData: before, afterData: updated });
     return projects;
   },
+  setProjectBrief: (projectId: string, brief: Pick<Project, 'briefFileName' | 'briefStoragePath' | 'briefUploadedAt'>) => {
+    const project = DataService.getProjectById(projectId);
+    if (!project) throw new Error('Proyecto no encontrado.');
+    return OperationsService.updateProject({ ...project, ...brief, lastActivityAt: new Date().toISOString() });
+  },
   getApplications: () => DataService.getApplications(),
   applyToProject: (projectId: string, student: { id: string; name: string; email: string }) => { const items = DataService.applyToProject(projectId, student); const application = items.find((item) => item.projectId === projectId && normaliseEmail(item.studentEmail) === normaliseEmail(student.email)); if (application) SyncService.enqueueUpsert('project_applications', toDatabase.application(application)); return items; },
   acceptApplication: (applicationId: string) => { const result = DataService.acceptApplication(applicationId); const application = result.applications.find((item) => item.id === applicationId); if (application) { SyncService.enqueueApplicationAcceptance(application.id, application.studentId, application.projectId); addActivity(application.projectId, 'equipo', `${application.studentName} fue aceptado en el proyecto.`); } return result; },
