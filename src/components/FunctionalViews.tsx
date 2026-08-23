@@ -2903,6 +2903,7 @@ export const ProjectDetail: React.FC<Common & { projectId: string; onBack?: () =
   const [linkLabel, setLinkLabel] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [contact, setContact] = useState({ name: '', email: '', phone: '' });
+  const [editingContactIndex, setEditingContactIndex] = useState<number | null>(null);
 
   useEffect(() => setTab(initialTab), [projectId, isMonitor, initialTab]);
 
@@ -2929,12 +2930,31 @@ export const ProjectDetail: React.FC<Common & { projectId: string; onBack?: () =
   };
 
   const saveContact = () => {
-    if (!contact.name.trim() || !contact.email.trim()) return;
-    OperationsService.updateProject({
-      ...project,
-      contacts: [...project.contacts, { name: contact.name.trim(), email: contact.email.trim(), phone: contact.phone.trim() || undefined }],
-    });
+    if (!contact.name.trim()) return;
+    const nextContact = { name: contact.name.trim(), ...(contact.email.trim() ? { email: contact.email.trim() } : {}), ...(contact.phone.trim() ? { phone: contact.phone.trim() } : {}) };
+    const nextContacts = editingContactIndex === null
+      ? [...project.contacts, nextContact]
+      : project.contacts.map((item, index) => (index === editingContactIndex ? nextContact : item));
+    OperationsService.updateProjectContacts(project.id, nextContacts);
     setContact({ name: '', email: '', phone: '' });
+    setEditingContactIndex(null);
+    onChanged();
+  };
+
+  const editContact = (index: number) => {
+    const item = project.contacts[index];
+    setContact({ name: item.name, email: item.email || '', phone: item.phone || '' });
+    setEditingContactIndex(index);
+  };
+
+  const removeContact = (index: number) => {
+    const item = project.contacts[index];
+    if (!window.confirm(`¿Eliminar el contacto ${item.name}?`)) return;
+    OperationsService.updateProjectContacts(project.id, project.contacts.filter((_item, contactIndex) => contactIndex !== index));
+    if (editingContactIndex === index) {
+      setEditingContactIndex(null);
+      setContact({ name: '', email: '', phone: '' });
+    }
     onChanged();
   };
 
@@ -2993,7 +3013,7 @@ export const ProjectDetail: React.FC<Common & { projectId: string; onBack?: () =
         </div>
       </Card>
 
-      {tab === 'resumen' && <ProjectLinksManager project={project} onChanged={onChanged} onContacts={() => setContactModal(true)} />}
+      {tab === 'resumen' && <ProjectLinksManager project={project} onChanged={onChanged} onContacts={() => { setContact({ name: '', email: '', phone: '' }); setEditingContactIndex(null); setContactModal(true); }} />}
 
       <div>
         {tab === 'resumen' && (
@@ -3068,26 +3088,28 @@ export const ProjectDetail: React.FC<Common & { projectId: string; onBack?: () =
 
       <Modal open={contactModal} title="Contactos de organización" onClose={() => setContactModal(false)}>
         <div className="space-y-4">
-          {project.contacts.map((item) => (
-            <div key={item.email} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 p-3 text-sm">
-              <span>
+          {project.contacts.map((item, index) => (
+            <div key={`${item.email || item.name}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/60 p-3 text-sm">
+              <span className="min-w-0">
                 <b className="text-[#0E2C40]">{item.name}</b>
                 <small className="ml-2 text-slate-400">
-                  {item.email} · {item.phone || 'sin celular'}
+                  {item.email || 'sin correo'} · {item.phone || 'sin celular'}
                 </small>
+              </span>
+              <span className="flex shrink-0 gap-1">
+                <button type="button" aria-label={`Editar contacto ${item.name}`} onClick={() => editContact(index)} className="rounded-lg p-1.5 text-slate-500 hover:bg-white hover:text-[#0D9488]"><Pencil className="h-4 w-4" /></button>
+                <button type="button" aria-label={`Eliminar contacto ${item.name}`} onClick={() => removeContact(index)} className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button>
               </span>
             </div>
           ))}
           <div className="border-t border-slate-100 pt-4">
-            <h3 className="text-xs font-extrabold text-[#0E2C40]">Nuevo contacto</h3>
+            <h3 className="text-xs font-extrabold text-[#0E2C40]">{editingContactIndex === null ? 'Nuevo contacto' : 'Editar contacto'}</h3>
             <div className="mt-2 grid gap-2 md:grid-cols-3">
               <input value={contact.name} onChange={(event) => setContact({ ...contact, name: event.target.value })} className={inputClass} placeholder="Nombre" />
-              <input type="email" value={contact.email} onChange={(event) => setContact({ ...contact, email: event.target.value })} className={inputClass} placeholder="Correo" />
+              <input type="email" value={contact.email} onChange={(event) => setContact({ ...contact, email: event.target.value })} className={inputClass} placeholder="Correo (opcional)" />
               <input value={contact.phone} onChange={(event) => setContact({ ...contact, phone: event.target.value })} className={inputClass} placeholder="Celular" />
             </div>
-            <Button onClick={saveContact} className="mt-3">
-              Guardar contacto
-            </Button>
+            <div className="mt-3 flex gap-2"><Button onClick={saveContact}>Guardar contacto</Button>{editingContactIndex !== null && <Button tone="secondary" onClick={() => { setEditingContactIndex(null); setContact({ name: '', email: '', phone: '' }); }}>Cancelar edición</Button>}</div>
           </div>
         </div>
       </Modal>

@@ -14,7 +14,7 @@ export interface Student {
 
 export interface CompanyContact {
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
 }
 

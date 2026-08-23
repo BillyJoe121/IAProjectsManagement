@@ -1,4 +1,4 @@
-import { ActivityItem, DocumentTemplate, MeetingMinute, MeetingStatus, Project, ProjectDocument, ProjectIssue, ProjectMeeting, ProjectTask, Student, TaskPriority, TaskStatus } from '../types';
+import { ActivityItem, CompanyContact, DocumentTemplate, MeetingMinute, MeetingStatus, Project, ProjectDocument, ProjectIssue, ProjectMeeting, ProjectTask, Student, TaskPriority, TaskStatus } from '../types';
 import { DataService } from './supabase';
 import { assignStudentsExclusively as assignStudentsRule } from './projectRules';
 import { normaliseEmail } from './projectRules';
@@ -83,6 +83,20 @@ export const OperationsService = {
       githubUrl: updated.githubUrl, driveFolderUrl: updated.driveFolderUrl,
     });
     AuditService.record({ projectId, entityType: 'project', entityId: projectId, action: 'update', beforeData: before, afterData: updated });
+    return projects;
+  },
+  updateProjectContacts: (projectId: string, contacts: CompanyContact[]) => {
+    const before = DataService.getProjectById(projectId);
+    if (!before) throw new Error('Proyecto no encontrado.');
+    const normalized = contacts.map((contact) => ({
+      name: contact.name.trim(),
+      ...(contact.email?.trim() ? { email: contact.email.trim() } : {}),
+      ...(contact.phone?.trim() ? { phone: contact.phone.trim() } : {}),
+    })).filter((contact) => contact.name);
+    const updated = { ...before, contacts: normalized, lastActivityAt: new Date().toISOString() };
+    const projects = DataService.updateProject(updated);
+    SyncService.enqueueProjectContacts(projectId, normalized);
+    AuditService.record({ projectId, entityType: 'project', entityId: projectId, action: 'update', beforeData: { contacts: before.contacts }, afterData: { contacts: normalized } });
     return projects;
   },
   setProjectBrief: (projectId: string, brief: Pick<Project, 'briefFileName' | 'briefStoragePath' | 'briefUploadedAt'>) => {

@@ -5,6 +5,7 @@ import {
   DocumentTemplate,
   MeetingMinute,
   Project,
+  CompanyContact,
   ProjectDocument,
   ProjectIssue,
   ProjectMeeting,
@@ -30,6 +31,7 @@ type Mutation =
   | { id: string; kind: 'delete'; table: TableName; recordId: string; createdAt: string }
   | { id: string; kind: 'replace_team'; projectId: string; emails: string[]; createdAt: string }
   | { id: string; kind: 'update_project_links'; projectId: string; resourceLinks: ProjectResourceLink[]; whatsappUrl?: string; teamsMeetingUrl?: string; githubUrl?: string; driveFolderUrl?: string; createdAt: string }
+  | { id: string; kind: 'update_project_contacts'; projectId: string; contacts: CompanyContact[]; createdAt: string }
   | { id: string; kind: 'set_profile_active'; studentId: string; isActive: boolean; createdAt: string }
   | { id: string; kind: 'accept_application'; applicationId: string; studentId: string; projectId: string; createdAt: string };
 
@@ -187,6 +189,12 @@ const execute = async (mutation: Mutation) => {
       target_drive_folder_url: mutation.driveFolderUrl || null,
     });
     if (error) throw error;
+  } else if (mutation.kind === 'update_project_contacts') {
+    const { error } = await supabaseClient.rpc('set_project_contacts', {
+      target_project_id: mutation.projectId,
+      target_contacts: mutation.contacts,
+    });
+    if (error) throw error;
   } else if (mutation.kind === 'set_profile_active') {
     const { error } = await supabaseClient.from('profiles').update({ is_active: mutation.isActive }).eq('id', mutation.studentId);
     if (error) throw error;
@@ -317,6 +325,11 @@ export const SyncService = {
   enqueueProjectLinks: (projectId: string, links: { resourceLinks: ProjectResourceLink[]; whatsappUrl?: string; teamsMeetingUrl?: string; githubUrl?: string; driveFolderUrl?: string }) => {
     if (!remoteMode) return;
     writeQueue([...readQueue(), { id: uuid(), kind: 'update_project_links', projectId, ...links, createdAt: new Date().toISOString() }]);
+    void SyncService.flush().catch(() => undefined);
+  },
+  enqueueProjectContacts: (projectId: string, contacts: CompanyContact[]) => {
+    if (!remoteMode) return;
+    writeQueue([...readQueue(), { id: uuid(), kind: 'update_project_contacts', projectId, contacts, createdAt: new Date().toISOString() }]);
     void SyncService.flush().catch(() => undefined);
   },
   enqueueProfileActive: (studentId: string, isActive: boolean) => {
