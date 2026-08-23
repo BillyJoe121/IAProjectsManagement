@@ -21,9 +21,9 @@ const CACHE = {
   templates: 'ia_hub_operation_templates', documents: 'ia_hub_operation_documents', activity: 'ia_hub_operation_activity',
 };
 const OUTBOX_KEY = 'ia_hub_sync_outbox';
-// Supabase is the only source of truth. The local adapter exists exclusively
-// inside the automated test runner, never as an application runtime option.
-const remoteMode = import.meta.env.VITE_TEST_MODE !== 'true';
+// Production is backed by Supabase. The isolated portfolio build persists only
+// fictional records in the current browser and makes no network request to it.
+const remoteMode = import.meta.env.VITE_DEMO_MODE !== 'true' && import.meta.env.VITE_TEST_MODE !== 'true';
 
 type TableName = 'projects' | 'project_tasks' | 'project_issues' | 'project_meetings' | 'meeting_minutes' | 'document_templates' | 'project_documents' | 'project_activity' | 'project_applications' | 'audit_log';
 type Mutation =

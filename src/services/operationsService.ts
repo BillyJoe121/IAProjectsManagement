@@ -15,6 +15,8 @@ const write = <T,>(key: string, value: T) => {
 };
 const id = (_prefix: string) => crypto.randomUUID();
 const day = (offset: number) => { const date = new Date(); date.setDate(date.getDate() + offset); return date.toISOString().slice(0, 10); };
+const portfolioDemo = import.meta.env.VITE_DEMO_MODE === 'true';
+const PORTFOLIO_DEMO_SEED_KEY = 'ia_hub_portfolio_demo_seed_v1';
 
 export const DEFAULT_TEMPLATES: DocumentTemplate[] = INSTITUTIONAL_TEMPLATES;
 // Backwards-compatible export for the retired views that remain in the repository.
@@ -29,10 +31,45 @@ const addActivity = (projectId: string, type: ActivityItem['type'], message: str
   if (project) DataService.updateProject({ ...project, lastActivityAt: new Date().toISOString() });
 };
 
+const seedPortfolioProjects = () => {
+  if (!portfolioDemo || localStorage.getItem(PORTFOLIO_DEMO_SEED_KEY)) return;
+  [
+    'ia_hub_projects', 'ia_hub_students', 'ia_hub_applications', 'ia_hub_minutes', 'ia_hub_deliverables', 'ia_hub_alerts', 'ia_hub_messages',
+    'ia_hub_operation_tasks', 'ia_hub_operation_issues', 'ia_hub_operation_meetings', 'ia_hub_operation_documents', 'ia_hub_operation_activity',
+    'ia_hub_operation_templates', 'ia_hub_private_files', 'ia_hub_audit_events',
+  ].forEach((key) => localStorage.removeItem(key));
+  const now = new Date().toISOString();
+  const valentina: Student = { id: 'student-demo-a', name: 'Valentina Torres', email: 'valentina.torres@demo.local', code: 'DEMO-2026-01', projectId: 'demo-aurora' };
+  const samuel: Student = { id: 'student-demo-b', name: 'Samuel Medina', email: 'samuel.medina@demo.local', code: 'DEMO-2026-02', projectId: 'demo-aurora' };
+  const lina: Student = { id: 'student-demo-c', name: 'Lina Herrera', email: 'lina.herrera@demo.local', code: 'DEMO-2026-03', projectId: 'demo-civitas' };
+  const projects: Project[] = [
+    {
+      id: 'demo-aurora', code: 'AURORA', companyName: 'Nexo Verde', title: 'Asistente para clasificar solicitudes ciudadanas',
+      challengeDescription: 'Diseñar un flujo de IA que priorice solicitudes y ayude al equipo de atención a identificar temas recurrentes.', progressStatus: 'En ejecución', progressPct: 68, riskLevel: 'amarillo', minStudents: 2, maxStudents: 4,
+      contacts: [{ name: 'Mariana Pardo', email: 'mariana.pardo@example.com', phone: '300 000 0001' }], assignedStudents: [valentina, samuel], aiType: ['Procesamiento de lenguaje natural', 'Clasificación'], complexityRating: 7, impactRating: 8,
+      aiRisks: 'Validar sesgos en la clasificación y proteger información personal.', requiredDatasets: 'Histórico anonimizado de solicitudes.', dataQualityAvailability: 'Muestra disponible para la fase inicial.', techViability: 'Integración mediante API y panel web.',
+      resourceLinks: [{ id: 'demo-link-aurora', label: 'Prototipo de referencia', url: 'https://example.com/demo-prototipo' }], lastActivityAt: now,
+    },
+    {
+      id: 'demo-civitas', code: 'CIVITAS', companyName: 'Ruta Urbana', title: 'Predicción de demanda para rutas de distribución',
+      challengeDescription: 'Estimar la demanda diaria por zona para apoyar la planeación de inventario y recorridos.', progressStatus: 'Validación de datos', progressPct: 42, riskLevel: 'verde', minStudents: 2, maxStudents: 4,
+      contacts: [{ name: 'Diego Salas', email: 'diego.salas@example.com' }], assignedStudents: [lina], aiType: ['Pronóstico', 'Analítica predictiva'], complexityRating: 6, impactRating: 7,
+      aiRisks: 'Explicar las recomendaciones y monitorear cambios estacionales.', requiredDatasets: 'Ventas históricas, inventario y zonas.', dataQualityAvailability: 'Datos estructurados con revisión en curso.', techViability: 'Modelo de series de tiempo desplegable como servicio.', lastActivityAt: now,
+    },
+    {
+      id: 'demo-lumen', code: 'LUMEN', companyName: 'Estudio Lumen', title: 'Generador de resúmenes de reuniones de diseño',
+      challengeDescription: 'Transformar transcripciones de reuniones en acuerdos, tareas y decisiones verificables.', progressStatus: 'Descubrimiento', progressPct: 18, riskLevel: 'rojo', minStudents: 2, maxStudents: 4,
+      contacts: [{ name: 'Andrea Molina', email: 'andrea.molina@example.com' }], assignedStudents: [], aiType: ['IA generativa', 'Extracción de información'], complexityRating: 8, impactRating: 9,
+      aiRisks: 'Revisión humana obligatoria antes de compartir los resúmenes.', requiredDatasets: 'Transcripciones consentidas de reuniones de prueba.', dataQualityAvailability: 'Pendiente de recolección.', techViability: 'Prototipo viable con procesamiento local demostrativo.', lastActivityAt: now,
+    },
+  ];
+  DataService.saveProjects(projects);
+  DataService.saveStudents([valentina, samuel, lina]);
+  localStorage.setItem(PORTFOLIO_DEMO_SEED_KEY, 'true');
+};
+
 const seed = () => {
-  // The former local demonstration records are intentionally disabled.
-  // Supabase hydration is now the only source of operational records.
-  return;
+  if (!portfolioDemo) return;
   const [first, second, third] = DataService.getProjects();
   if (!first) return;
   const now = new Date().toISOString();
@@ -64,7 +101,7 @@ const renderDocument = (template: DocumentTemplate, project: Project, tasks: Pro
 };
 
 export const OperationsService = {
-  initialise: () => undefined,
+  initialise: () => { seedPortfolioProjects(); seed(); },
   getProjects: (): Project[] => DataService.getProjects(),
   getStudents: (): Student[] => {
     const map = new Map<string, Student>();
@@ -190,7 +227,17 @@ export const OperationsService = {
   },
   getMinutes: (projectId?: string) => projectId ? DataService.getMinutesByProject(projectId) : DataService.getMinutes(),
   getActivity: (projectId?: string) => { seed(); const items = read<ActivityItem[]>(KEYS.activity, []); return projectId ? items.filter((item) => item.projectId === projectId) : items; },
-  resetDemoData: () => Object.values(KEYS).forEach((key) => localStorage.removeItem(key))
+  resetDemoData: () => {
+    Object.values(KEYS).forEach((key) => localStorage.removeItem(key));
+    if (portfolioDemo) {
+      localStorage.removeItem('ia_hub_projects');
+      localStorage.removeItem('ia_hub_students');
+      localStorage.removeItem('ia_hub_applications');
+      localStorage.removeItem('ia_hub_private_files');
+      localStorage.removeItem('ia_hub_audit_events');
+      localStorage.removeItem(PORTFOLIO_DEMO_SEED_KEY);
+    }
+  }
 };
 
 export const taskPriorities: TaskPriority[] = ['baja', 'media', 'alta', 'critica'];

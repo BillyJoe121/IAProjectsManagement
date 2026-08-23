@@ -1,23 +1,15 @@
 services:
   - type: web
-    name: ia-projects-management
     runtime: static
+    name: projects-management-demo
     buildCommand: npm ci && npm run build
-    staticPublishPath: ./dist
-    autoDeployTrigger: commit
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: true
     envVars:
       - key: NODE_VERSION
         value: 24.14.1
-      - key: VITE_SUPABASE_URL
-        sync: false
-      - key: VITE_SUPABASE_PUBLISHABLE_KEY
-        sync: false
-      - key: VITE_DATA_MODE
-        value: supabase
-      - key: VITE_ALLOW_LOCAL_DEMO
-        value: "false"
-      - key: VITE_ENABLE_DEMO_ROLE_SWITCH
-        value: "false"
+      - key: VITE_DEMO_MODE
+        value: "true"
     routes:
       - type: rewrite
         source: /*
