@@ -9,6 +9,7 @@ La rama `portfolio-demo` está aislada de la versión institucional. No requiere
 - Los tres proyectos, contactos, tareas, reuniones e incidencias son ficticios.
 - Las ediciones, cargas de archivos y documentos se conservan únicamente en `localStorage` del visitante.
 - Las funciones que requieren infraestructura externa se muestran como simuladas o locales.
+- En Reuniones, **Simular envío a IA y crear acta** carga una transcripción ficticia, muestra el estado de análisis y crea un borrador editable con la plantilla institucional de acta; al guardarlo genera sus tareas y documento local.
 - El control **Restablecer demo** elimina las modificaciones locales y recupera los ejemplos iniciales.
 
 ## Publicación en Render

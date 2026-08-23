@@ -1563,6 +1563,7 @@ const MeetingForm: React.FC<{
 };
 
 const ActaUploader: React.FC<{ project: Project; meeting?: ProjectMeeting; onDone: () => void }> = ({ project, meeting, onDone }) => {
+  const portfolioDemo = import.meta.env.VITE_DEMO_MODE === 'true';
   const [text, setText] = useState('');
   const [result, setResult] = useState<TranscriptAnalysisResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1611,16 +1612,24 @@ const ActaUploader: React.FC<{ project: Project; meeting?: ProjectMeeting; onDon
     reader.readAsText(file);
   };
 
-  const analyze = async () => {
+  const analyzeText = async (sourceText: string, simulated = false) => {
     setBusy(true);
     setError('');
     try {
-      setResult(await AIService.analyzeTranscript(text, project.title, project.id));
+      if (simulated) await new Promise<void>((resolve) => window.setTimeout(resolve, 850));
+      setResult(await AIService.analyzeTranscript(sourceText, project.title, project.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No se pudo analizar la transcripción.');
     } finally {
       setBusy(false);
     }
+  };
+  const analyze = () => analyzeText(text);
+  const simulateAiDraft = () => {
+    const transcript = `Reunión de seguimiento del proyecto ${project.title}. El equipo revisó el prototipo inicial y acordó priorizar la clasificación de solicitudes frecuentes. Valentina Torres debe validar las categorías con cinco casos de prueba antes del próximo encuentro. Samuel Medina entregará una propuesta de métricas y responsables. Se identificó como riesgo la calidad inconsistente de los datos históricos; se acordó documentar los criterios de limpieza. La siguiente reunión será el próximo jueves.`;
+    setText(transcript);
+    setSelectedFile(null);
+    void analyzeText(transcript, true);
   };
 
   const saveMinute = async () => {
@@ -1707,6 +1716,15 @@ const ActaUploader: React.FC<{ project: Project; meeting?: ProjectMeeting; onDon
             <Sparkles className="h-4 w-4" />
             {busy ? 'Analizando…' : 'Generar borrador editable'}
           </Button>
+          {portfolioDemo && (
+            <div className="rounded-xl border border-dashed border-teal-200 bg-white/80 p-3">
+              <p className="text-xs font-semibold text-slate-700">Demo sin API: usa una transcripción ficticia y simula el análisis con IA antes de generar el acta desde la plantilla.</p>
+              <Button disabled={busy} tone="secondary" className="mt-2" onClick={simulateAiDraft}>
+                <Sparkles className="h-4 w-4" />
+                {busy ? 'Simulando análisis de IA…' : 'Simular envío a IA y crear acta'}
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <div key="minute-editor" className="mt-4 space-y-4">
