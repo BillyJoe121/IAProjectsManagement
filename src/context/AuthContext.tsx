@@ -22,15 +22,15 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-// Portfolio and automated-test builds never contact Supabase. Their identities
-// and records are intentionally fictional and live only in the visitor's browser.
-const localDemoEnabled = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.VITE_TEST_MODE === 'true';
+// The local role switch exists exclusively for automated tests. All normal
+// development and deployed builds authenticate through Supabase.
+const localDemoEnabled = import.meta.env.VITE_TEST_MODE === 'true';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [role, setRole] = useState<UserRole>(localDemoEnabled ? 'superuser' : 'student_group');
-  const [userEmail, setUserEmail] = useState(localDemoEnabled ? 'camila.rojas@demo.local' : '');
-  const [userName, setUserName] = useState(localDemoEnabled ? 'Camila Rojas' : '');
-  const [studentCode, setStudentCode] = useState<string | undefined>(localDemoEnabled ? 'DEMO-ADMIN-01' : undefined);
+  const [userEmail, setUserEmail] = useState(localDemoEnabled ? 'monitor.ia@u.icesi.edu.co' : '');
+  const [userName, setUserName] = useState(localDemoEnabled ? 'Monitor Principal (Superuser)' : '');
+  const [studentCode, setStudentCode] = useState<string | undefined>(localDemoEnabled ? 'SUPERUSER-001' : undefined);
   const [assignedProjectId, setAssignedProjectId] = useState<string | null>(null);
   const [userId, setUserId] = useState(localDemoEnabled ? 'monitor-demo' : '');
   const [isAuthenticated, setIsAuthenticated] = useState(localDemoEnabled);
@@ -112,9 +112,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const switchRoleToggle = () => {
     if (!localDemoEnabled) return;
     if (role === 'superuser') {
-      setRole('student_group'); setUserId('student-demo-a'); setUserEmail('valentina.torres@demo.local'); setUserName('Valentina Torres'); setStudentCode('DEMO-2026-01'); setAssignedProjectId('demo-aurora');
+      setRole('student_group'); setUserId('student-demo-a'); setUserEmail('angela6309gonzalez@gmail.com'); setUserName('Ángela González'); setStudentCode('2201001'); setAssignedProjectId('proj-1');
     } else {
-      setRole('superuser'); setUserId('monitor-demo'); setUserEmail('camila.rojas@demo.local'); setUserName('Camila Rojas'); setStudentCode('DEMO-ADMIN-01'); setAssignedProjectId(null);
+      setRole('superuser'); setUserId('monitor-demo'); setUserEmail('monitor.ia@u.icesi.edu.co'); setUserName('Monitor Principal (Superuser)'); setStudentCode('SUPERUSER-001'); setAssignedProjectId(null);
     }
   };
 

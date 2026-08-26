@@ -13,7 +13,7 @@ export const MassUserImportModal: React.FC<MassUserImportModalProps> = ({
   onImportComplete,
 }) => {
   const [inputText, setInputText] = useState(
-    `nombre,correo,codigo\nJuan Perez,juan.perez@demo.local,DEMO-001\nMaria Lopez,maria.lopez@demo.local,DEMO-002`
+    `nombre,correo,codigo\nJuan Perez,juan_perez@u.icesi.edu.co,2201040\nMaria Lopez,maria_lopez@u.icesi.edu.co,2201041`
   );
 
   useEffect(() => {

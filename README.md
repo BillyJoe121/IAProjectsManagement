@@ -1,22 +1,4 @@
-# Projects Management — demo de portafolio
-
-Aplicación React para visualizar una experiencia de gestión colaborativa de proyectos: equipos, tareas, reuniones, incidencias, documentos y exportación organizada.
-
-Esta rama (`portfolio-demo`) usa exclusivamente datos ficticios y funciona sin Supabase, credenciales externas ni servicios de IA remotos. Los cambios que haga cada visitante se guardan únicamente en su navegador y se pueden restablecer desde el demo.
-
-## Ejecutar el demo
-
-```bash
-npm ci
-Copy-Item .env.portfolio.example .env.local
-npm run dev
-```
-
-## Despliegue en Render
-
-El archivo `render.yaml` incluye la configuración para un Static Site. La rama ya incorpora `VITE_DEMO_MODE=true` en `.env.production`, por lo que Render siempre construirá el demo aunque el Static Site se haya creado manualmente. No configures variables de Supabase.
-
-La guía detallada está en [docs/PORTFOLIO_DEMO.md](docs/PORTFOLIO_DEMO.md).
+# IA Projects Management
 
 Plataforma de seguimiento de proyectos académicos para monitores, profesores y estudiantes. Centraliza equipos, asignación exclusiva de estudiantes, incidentes, reuniones, tareas y generación/revisión de documentos institucionales con IA.
 

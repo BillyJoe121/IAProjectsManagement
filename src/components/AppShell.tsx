@@ -25,7 +25,6 @@ interface AppShellProps {
   alertCount: number;
   onNavigate: (page: AppPage) => void;
   onSwitchDemoRole: () => void;
-  onResetDemo?: () => void;
   onLogout?: () => void;
   onChangePassword?: () => void;
   canSwitchDemoRole?: boolean;
@@ -51,7 +50,6 @@ export const AppShell: React.FC<AppShellProps> = ({
   alertCount,
   onNavigate,
   onSwitchDemoRole,
-  onResetDemo,
   onLogout,
   onChangePassword,
   canSwitchDemoRole = false,
@@ -131,16 +129,13 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
 
             {canSwitchDemoRole && (
-              <div className="hidden items-center gap-2 md:flex">
-                <button
-                  onClick={onSwitchDemoRole}
-                  className="app-shell__demo-switch rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-[#0D9488] shadow-sm transition hover:border-[#0D9488] hover:bg-teal-50/50"
-                  title="Alterna entre las dos experiencias ficticias del demo"
-                >
-                  {isMonitor ? 'Vista estudiante demo' : 'Vista monitor demo'}
-                </button>
-                {onResetDemo && <button onClick={onResetDemo} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50">Restablecer demo</button>}
-              </div>
+              <button
+                onClick={onSwitchDemoRole}
+                className="app-shell__demo-switch hidden rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-[#0D9488] shadow-sm transition hover:border-[#0D9488] hover:bg-teal-50/50 md:inline-flex"
+                title="Solo disponible en el entorno local de desarrollo"
+              >
+                {isMonitor ? 'Vista estudiante demo' : 'Vista monitor demo'}
+              </button>
             )}
 
             {onLogout && (

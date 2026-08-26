@@ -4,8 +4,6 @@ dist/
 .env.local
 .env.*
 !.env.example
-!.env.portfolio.example
-!.env.production
 playwright-report/
 test-results/
 graphify-out/
