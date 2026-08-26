@@ -356,6 +356,7 @@ const RiskFilter: React.FC<{ value: string; onChange: (value: string) => void }>
     { value: 'rojo', label: 'Riesgo rojo', tone: 'red' as const },
     { value: 'amarillo', label: 'Riesgo amarillo', tone: 'amber' as const },
     { value: 'verde', label: 'Riesgo verde', tone: 'green' as const },
+    { value: 'sin_integrantes', label: 'Sin integrantes', tone: 'amber' as const },
   ];
   const selected = options.find((option) => option.value === value) || options[0];
   return (
@@ -599,7 +600,9 @@ export const ProjectsView: React.FC<Common> = ({ projects, onOpenProject, onChan
 
   const filtered = projects.filter((project) => {
     const matchesText = `${project.code} ${project.title} ${project.companyName}`.toLowerCase().includes(search.toLowerCase());
-    return matchesText && (risk === 'todos' || project.riskLevel === risk);
+    const hasNoMembers = project.assignedStudents.length === 0;
+    const matchesRisk = risk === 'todos' || (risk === 'sin_integrantes' ? hasNoMembers : project.riskLevel === risk);
+    return matchesText && matchesRisk;
   });
 
   return (
@@ -712,14 +715,19 @@ export const ProjectsView: React.FC<Common> = ({ projects, onOpenProject, onChan
         {filtered.map((project) => {
           const openTasks = OperationsService.getTasks(project.id).filter((task) => task.status !== 'completada').length;
           const openIssues = OperationsService.getIssues(project.id).filter((issue) => issue.status !== 'resuelta').length;
+          const hasNoMembers = project.assignedStudents.length === 0;
+          const effectiveRisk = hasNoMembers ? 'amarillo' : project.riskLevel;
+          const hasBrief = Boolean(project.briefStoragePath);
           return (
             <Card key={project.id} className="project-card p-3 sm:p-5" onClick={() => onOpenProject(project.id)}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 sm:flex-1">
-                  <div className="flex items-center gap-2">
-                    <Badge tone={project.riskLevel === 'rojo' ? 'red' : project.riskLevel === 'amarillo' ? 'amber' : 'green'}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={effectiveRisk === 'rojo' ? 'red' : effectiveRisk === 'amarillo' ? 'amber' : 'green'}>
                       {project.code}
                     </Badge>
+                    {!hasBrief && <Badge tone="amber">Sin Brief</Badge>}
+                    {hasNoMembers && <Badge tone="amber">Riesgo amarillo</Badge>}
                     <span className="truncate text-[10px] font-medium text-slate-400 sm:text-xs">{project.companyName}</span>
                   </div>
                   <h2 className="mt-2 line-clamp-2 text-sm font-medium leading-snug text-slate-700 sm:mt-3 sm:text-base">{project.title}</h2>
@@ -1563,6 +1571,7 @@ const MeetingForm: React.FC<{
 };
 
 const ActaUploader: React.FC<{ project: Project; meeting?: ProjectMeeting; onDone: () => void }> = ({ project, meeting, onDone }) => {
+  const portfolioDemo = import.meta.env.VITE_DEMO_MODE === 'true';
   const [text, setText] = useState('');
   const [result, setResult] = useState<TranscriptAnalysisResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1611,16 +1620,24 @@ const ActaUploader: React.FC<{ project: Project; meeting?: ProjectMeeting; onDon
     reader.readAsText(file);
   };
 
-  const analyze = async () => {
+  const analyzeText = async (sourceText: string, simulated = false) => {
     setBusy(true);
     setError('');
     try {
-      setResult(await AIService.analyzeTranscript(text, project.title, project.id));
+      if (simulated) await new Promise<void>((resolve) => window.setTimeout(resolve, 850));
+      setResult(await AIService.analyzeTranscript(sourceText, project.title, project.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No se pudo analizar la transcripción.');
     } finally {
       setBusy(false);
     }
+  };
+  const analyze = () => analyzeText(text);
+  const simulateAiDraft = () => {
+    const transcript = `Reunión de seguimiento del proyecto ${project.title}. El equipo revisó el prototipo inicial y acordó priorizar la clasificación de solicitudes frecuentes. Valentina Torres debe validar las categorías con cinco casos de prueba antes del próximo encuentro. Samuel Medina entregará una propuesta de métricas y responsables. Se identificó como riesgo la calidad inconsistente de los datos históricos; se acordó documentar los criterios de limpieza. La siguiente reunión será el próximo jueves.`;
+    setText(transcript);
+    setSelectedFile(null);
+    void analyzeText(transcript, true);
   };
 
   const saveMinute = async () => {
@@ -1707,6 +1724,15 @@ const ActaUploader: React.FC<{ project: Project; meeting?: ProjectMeeting; onDon
             <Sparkles className="h-4 w-4" />
             {busy ? 'Analizando…' : 'Generar borrador editable'}
           </Button>
+          {portfolioDemo && (
+            <div className="rounded-xl border border-dashed border-teal-200 bg-white/80 p-3">
+              <p className="text-xs font-semibold text-slate-700">Demo sin API: usa una transcripción ficticia y simula el análisis con IA antes de generar el acta desde la plantilla.</p>
+              <Button disabled={busy} tone="secondary" className="mt-2" onClick={simulateAiDraft}>
+                <Sparkles className="h-4 w-4" />
+                {busy ? 'Simulando análisis de IA…' : 'Simular envío a IA y crear acta'}
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <div key="minute-editor" className="mt-4 space-y-4">
@@ -1979,7 +2005,18 @@ export const MeetingsView: React.FC<Common & { projectId?: string; isMonitor?: b
                     <div>
                       <h2 className="text-sm font-extrabold text-[#0E2C40] sm:text-base">{meeting.title}</h2>
                       <p className="mt-1 text-xs text-slate-400">
-                        {projectCode(projects, meeting.projectId)} · {formatDate(meeting.startsAt)} · {meeting.durationMinutes} min
+                        {meetingProject ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenProject(meeting.projectId)}
+                            className="font-bold text-[#0D9488] underline decoration-teal-300 underline-offset-2 transition hover:text-[#0F766E]"
+                          >
+                            {meetingProject.title}
+                          </button>
+                        ) : (
+                          projectCode(projects, meeting.projectId)
+                        )}{' '}
+                        · {formatDate(meeting.startsAt)} · {meeting.durationMinutes} min
                       </p>
                       {meeting.agenda && <p className="mt-2 text-xs text-slate-600 sm:text-sm">{meeting.agenda}</p>}
                       {meeting.meetingUrl && (

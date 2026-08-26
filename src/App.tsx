@@ -40,7 +40,7 @@ const LoginScreenWithVisibility: React.FC<{ onSignIn: (email: string, password: 
               I
             </div>
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Universidad Icesi</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Demo de portafolio</p>
               <h1 className="text-xl font-extrabold tracking-tight text-[#0E2C40]">Projects Management</h1>
             </div>
           </div>
@@ -66,7 +66,7 @@ const LoginScreenWithVisibility: React.FC<{ onSignIn: (email: string, password: 
                   autoComplete="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="ejemplo@correo.icesi.edu.co"
+                  placeholder="ejemplo@demo.local"
                   className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#0D9488] focus:ring-2 focus:ring-[#0D9488]/20"
                 />
               </div>
@@ -106,7 +106,7 @@ const LoginScreenWithVisibility: React.FC<{ onSignIn: (email: string, password: 
           {recoverySent && <p role="status" className="mt-3 rounded-xl bg-teal-50 p-3 text-xs text-teal-800">Si tu cuenta está autorizada, recibirás un correo con las instrucciones.</p>}
 
           <p className="mt-5 text-center text-[11px] text-slate-400">
-            Coordinación Académica de Proyectos IA · Universidad Icesi
+            Entorno demostrativo · datos ficticios
           </p>
         </form>
       </div>
@@ -307,7 +307,7 @@ const Workspace: React.FC = () => {
     }
   }
 
-  const canSwitchDemoRole = isLocalDemo && (import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ROLE_SWITCH === 'true');
+  const canSwitchDemoRole = isLocalDemo;
   return (
     <>
     <AppShell
@@ -325,6 +325,7 @@ const Workspace: React.FC = () => {
       onChangePassword={isMonitor ? () => setPasswordModal(true) : undefined}
       onNavigate={(nextPage) => { setSelectedProjectId(null); setPage(nextPage); }}
       onSwitchDemoRole={() => { switchRoleToggle(); setSelectedProjectId(null); setPage('inicio'); }}
+      onResetDemo={isLocalDemo ? () => { OperationsService.resetDemoData(); OperationsService.initialise(); setSelectedProjectId(null); setPage('inicio'); refresh(); } : undefined}
     >
       {content}
     </AppShell>

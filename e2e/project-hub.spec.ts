@@ -11,6 +11,17 @@ test.beforeEach(async ({ page }) => {
       lastActivityAt: '2026-08-01T00:00:00.000Z', assignedStudents: [{
         id: 'student-demo-a', name: 'Ángela González', email: 'angela6309gonzalez@gmail.com', code: '2201001', projectId: 'e2e-project-1',
       }],
+    }, {
+      id: 'e2e-project-empty', code: 'E2E-EMPTY', companyName: 'Organización sin equipo',
+      title: 'Proyecto sin integrantes', progressPct: 0, riskLevel: 'verde',
+      minStudents: 1, maxStudents: 5, contacts: [], aiType: [], complexityRating: 5,
+      lastActivityAt: '2026-08-01T00:00:00.000Z', assignedStudents: [],
+    }]));
+    localStorage.setItem('ia_hub_operation_meetings', JSON.stringify([{
+      id: 'e2e-meeting-empty', projectId: 'e2e-project-empty', title: 'Reunión del proyecto sin equipo',
+      startsAt: '2026-08-12T15:00:00', durationMinutes: 45, attendees: ['Monitor'],
+      timezone: 'America/Bogota', status: 'programada', calendarSync: 'simulado',
+      createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
     }]));
   });
   await page.reload();
@@ -25,6 +36,22 @@ test('monitor creates a project and sees it in the catalog', async ({ page }) =>
   await page.getByLabel('Descripción del reto').fill('Validar el flujo completo de creación.');
   await page.getByRole('button', { name: 'Crear proyecto', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Proyecto creado por prueba automatizada' })).toBeVisible();
+});
+
+test('monitor can identify and filter projects without members, then open their meeting project', async ({ page }) => {
+  await page.getByRole('button', { name: 'Proyectos', exact: true }).click();
+  const projectWithoutMembers = page.getByRole('button', { name: /E2E-EMPTY Sin Brief Riesgo amarillo/ });
+  await expect(projectWithoutMembers.getByText('Sin Brief', { exact: true })).toBeVisible();
+  await expect(projectWithoutMembers.getByText('Riesgo amarillo', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Todos los riesgos' }).click();
+  await page.getByRole('option', { name: 'Sin integrantes' }).click();
+  await expect(page.getByRole('heading', { name: 'Proyecto sin integrantes', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Clasificación de solicitudes de servicio', exact: true })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Agenda', exact: true }).click();
+  await page.getByRole('button', { name: 'Proyecto sin integrantes', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Proyecto sin integrantes', exact: true })).toBeVisible();
 });
 
 test('monitor workflows use modal forms and custom selectors', async ({ page }) => {

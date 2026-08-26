@@ -111,7 +111,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="Ej. Coomeva CEM, INSIGHT PMO, Bancoomeva..."
+                placeholder="Ej. Nexo Verde, Ruta Urbana, Estudio Lumen..."
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 className="w-full border border-slate-200 bg-white px-3.5 py-2 text-slate-800 outline-none transition focus:border-[#0D9488] focus:ring-2 focus:ring-[#0D9488]/20"

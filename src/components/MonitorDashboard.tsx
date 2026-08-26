@@ -118,13 +118,13 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({
     <div className="space-y-8">
       <section className="icesi-hero grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
         <div className="relative z-10 max-w-2xl">
-          <p className="icesi-hero-kicker">Facultad de Ingenieria, Diseno y Ciencias Aplicadas</p>
-          <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Seguimiento de proyectos con impacto real.</h2>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/80">Visualiza el progreso de los retos Coomeva, acompana a los equipos y transforma cada avance en evidencia academica.</p>
+          <p className="icesi-hero-kicker">Versión demostrativa · datos ficticios</p>
+          <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Seguimiento de proyectos con información accionable.</h2>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/80">Explora el avance de retos ficticios, acompaña equipos y convierte cada actividad en evidencia organizada.</p>
         </div>
         <div className="relative z-10 border-l-2 border-[#e9f534] pl-4 text-sm text-white">
           <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">Periodo academico</p>
-          <p className="mt-1 font-black">2026-2 · IA aplicada</p>
+          <p className="mt-1 font-black">Demo de portafolio · IA aplicada</p>
         </div>
       </section>
       {/* Top Banner & KPI Stat Cards */}
