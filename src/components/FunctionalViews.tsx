@@ -356,6 +356,7 @@ const RiskFilter: React.FC<{ value: string; onChange: (value: string) => void }>
     { value: 'rojo', label: 'Riesgo rojo', tone: 'red' as const },
     { value: 'amarillo', label: 'Riesgo amarillo', tone: 'amber' as const },
     { value: 'verde', label: 'Riesgo verde', tone: 'green' as const },
+    { value: 'sin_integrantes', label: 'Sin integrantes', tone: 'amber' as const },
   ];
   const selected = options.find((option) => option.value === value) || options[0];
   return (
@@ -599,7 +600,9 @@ export const ProjectsView: React.FC<Common> = ({ projects, onOpenProject, onChan
 
   const filtered = projects.filter((project) => {
     const matchesText = `${project.code} ${project.title} ${project.companyName}`.toLowerCase().includes(search.toLowerCase());
-    return matchesText && (risk === 'todos' || project.riskLevel === risk);
+    const hasNoMembers = project.assignedStudents.length === 0;
+    const matchesRisk = risk === 'todos' || (risk === 'sin_integrantes' ? hasNoMembers : project.riskLevel === risk);
+    return matchesText && matchesRisk;
   });
 
   return (
@@ -712,14 +715,19 @@ export const ProjectsView: React.FC<Common> = ({ projects, onOpenProject, onChan
         {filtered.map((project) => {
           const openTasks = OperationsService.getTasks(project.id).filter((task) => task.status !== 'completada').length;
           const openIssues = OperationsService.getIssues(project.id).filter((issue) => issue.status !== 'resuelta').length;
+          const hasNoMembers = project.assignedStudents.length === 0;
+          const effectiveRisk = hasNoMembers ? 'amarillo' : project.riskLevel;
+          const hasBrief = Boolean(project.briefStoragePath);
           return (
             <Card key={project.id} className="project-card p-3 sm:p-5" onClick={() => onOpenProject(project.id)}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 sm:flex-1">
-                  <div className="flex items-center gap-2">
-                    <Badge tone={project.riskLevel === 'rojo' ? 'red' : project.riskLevel === 'amarillo' ? 'amber' : 'green'}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={effectiveRisk === 'rojo' ? 'red' : effectiveRisk === 'amarillo' ? 'amber' : 'green'}>
                       {project.code}
                     </Badge>
+                    {!hasBrief && <Badge tone="amber">Sin Brief</Badge>}
+                    {hasNoMembers && <Badge tone="amber">Riesgo amarillo</Badge>}
                     <span className="truncate text-[10px] font-medium text-slate-400 sm:text-xs">{project.companyName}</span>
                   </div>
                   <h2 className="mt-2 line-clamp-2 text-sm font-medium leading-snug text-slate-700 sm:mt-3 sm:text-base">{project.title}</h2>
@@ -1979,7 +1987,18 @@ export const MeetingsView: React.FC<Common & { projectId?: string; isMonitor?: b
                     <div>
                       <h2 className="text-sm font-extrabold text-[#0E2C40] sm:text-base">{meeting.title}</h2>
                       <p className="mt-1 text-xs text-slate-400">
-                        {projectCode(projects, meeting.projectId)} · {formatDate(meeting.startsAt)} · {meeting.durationMinutes} min
+                        {meetingProject ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenProject(meeting.projectId)}
+                            className="font-bold text-[#0D9488] underline decoration-teal-300 underline-offset-2 transition hover:text-[#0F766E]"
+                          >
+                            {meetingProject.title}
+                          </button>
+                        ) : (
+                          projectCode(projects, meeting.projectId)
+                        )}{' '}
+                        · {formatDate(meeting.startsAt)} · {meeting.durationMinutes} min
                       </p>
                       {meeting.agenda && <p className="mt-2 text-xs text-slate-600 sm:text-sm">{meeting.agenda}</p>}
                       {meeting.meetingUrl && (
