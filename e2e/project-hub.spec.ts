@@ -145,9 +145,48 @@ test('a student can resolve an issue created by another member of the same proje
 
 test('mobile navigation exposes every monitor section without page overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('button', { name: 'Reportes', exact: true })).toBeAttached();
+  await page.getByRole('button', { name: 'Más', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Reportes', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Reportes', exact: true }).click();
   await expect(page.getByPlaceholder('Buscar proyecto por nombre, código o empresa')).toBeVisible();
   const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
   expect(dimensions.scroll).toBe(dimensions.width);
+});
+
+test('weekly report summarizes held meetings and shows project follow-up detail', async ({ page }) => {
+  await page.evaluate(() => {
+    const dateKey = (date: Date) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const meetingDate = `${dateKey(monday)}T10:00:00`;
+    const issueDate = `${dateKey(now)}T12:00:00`;
+    localStorage.setItem('ia_hub_operation_meetings', JSON.stringify([{
+      id: 'e2e-weekly-meeting', projectId: 'e2e-project-1', title: 'Seguimiento semanal E2E', startsAt: meetingDate,
+      durationMinutes: 45, attendees: ['Monitor'], timezone: 'America/Bogota', status: 'realizada', calendarSync: 'simulado',
+      createdAt: meetingDate, updatedAt: meetingDate,
+    }, {
+      id: 'e2e-weekly-scheduled', projectId: 'e2e-project-empty', title: 'Sesión programada E2E', startsAt: meetingDate,
+      durationMinutes: 45, attendees: ['Monitor'], timezone: 'America/Bogota', status: 'programada', calendarSync: 'simulado',
+      createdAt: meetingDate, updatedAt: meetingDate,
+    }]));
+    localStorage.setItem('ia_hub_operation_issues', JSON.stringify([{
+      id: 'e2e-weekly-issue', projectId: 'e2e-project-1', title: 'Incidencia semanal E2E', description: 'Bloqueo registrado para la prueba.',
+      category: 'tecnico', priority: 'media', status: 'abierta', reportedBy: 'Equipo E2E', createdAt: issueDate, updatedAt: issueDate,
+    }]));
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'Reportes', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Informe semanal' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Proyectos con mayor seguimiento' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Proyectos para retomar' })).toBeVisible();
+  await expect(page.getByText('E2E-EMPTY · Proyecto sin integrantes', { exact: true }).first()).toBeVisible();
+
+  await page.getByText('E2E-1 · Clasificación de solicitudes de servicio', { exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Seguimiento · E2E-1' });
+  await expect(dialog.getByText('Historial de reuniones', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Seguimiento semanal E2E', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Historial de incidencias', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Incidencia semanal E2E', { exact: true })).toBeVisible();
 });

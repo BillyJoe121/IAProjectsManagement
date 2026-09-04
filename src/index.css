@@ -294,7 +294,6 @@
 }
 
 .app-shell__demo-switch {
-  display: inline-flex;
   align-items: center;
   border: 1px solid #CBD5E1;
   border-radius: 0px !important;

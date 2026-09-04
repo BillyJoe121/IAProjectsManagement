@@ -50,13 +50,14 @@ import { CalendarService } from '../services/calendarService';
 import { SyncService } from '../services/syncService';
 import { DocumentWorkflowService } from '../services/documentWorkflowService';
 import { AiLimitIncident, AiLimitIncidentService } from '../services/aiLimitIncidentService';
+import { buildWeeklyReport } from '../services/weeklyReport';
 import { INSTITUTIONAL_TEMPLATES, templateByType } from '../data/institutionalTemplates';
 import { ProjectBrief } from './ProjectBrief';
 import { HtmlPagePreview } from './DocumentPagePreview';
 
 export const formatDate = (value?: string) => {
   if (!value) return 'Sin fecha';
-  const parsed = new Date(value);
+  const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value);
   if (Number.isNaN(parsed.getTime())) return value;
   return new Intl.DateTimeFormat('es-CO', {
     dateStyle: 'medium',
@@ -3362,142 +3363,173 @@ export const PeopleView: React.FC<Common> = ({ projects, onChanged }) => {
   );
 };
 
-const printProjectReport = (project: Project) => {
-  const tasks = OperationsService.getTasks(project.id);
-  const issues = OperationsService.getIssues(project.id);
-  const meetings = OperationsService.getMeetings(project.id);
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer');
-  if (!printWindow) return;
-  printWindow.document.write(
-    `<html><head><title>Reporte ${project.code}</title><style>body{font-family:Arial,sans-serif;color:#0e2c40;padding:32px}h1{margin-bottom:4px}h2{margin-top:24px;border-bottom:1px solid #ccc;padding-bottom:6px}li{margin:6px 0}</style></head><body><h1>${project.code} · ${project.title}</h1><p>${project.companyName} · avance ${project.progressPct}%</p><h2>Estudiantes</h2><ul>${project.assignedStudents.map((student) => `<li>${student.name} · ${student.email}</li>`).join('') || '<li>Sin estudiantes</li>'}</ul><h2>Contactos</h2><ul>${project.contacts.map((contact) => `<li>${contact.name} · ${contact.email} · ${contact.phone || ''}</li>`).join('') || '<li>Sin contactos</li>'}</ul><h2>Indicadores</h2><p>Tareas realizadas: ${tasks.filter((task) => task.status === 'completada').length}</p><p>Incidencias presentadas: ${issues.length}</p><p>Reuniones realizadas: ${meetings.filter((meeting) => meeting.status === 'realizada').length}</p></body></html>`
-  );
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
-};
-
 export const ReportsView: React.FC<Common> = ({ projects }) => {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Project | null>(null);
-  const filtered = projects.filter((project) =>
-    `${project.code} ${project.companyName} ${project.title}`.toLowerCase().includes(query.toLowerCase())
+  const [reportDate, setReportDate] = useState(() => new Date());
+  const meetings = OperationsService.getMeetings();
+  const issues = OperationsService.getIssues();
+  const report = buildWeeklyReport({ projects, meetings, issues, referenceDate: reportDate });
+  const filtered = report.projects.filter(({ project }) =>
+    `${project.code} ${project.companyName} ${project.title}`.toLowerCase().includes(query.toLowerCase()),
   );
-  const totals = {
-    tasks: OperationsService.getTasks().filter((task) => task.status !== 'completada').length,
-    overdue: OperationsService.getTasks().filter((task) => isTaskOverdue(task)).length,
-    issues: OperationsService.getIssues().filter((issue) => issue.status !== 'resuelta').length,
-  };
+  const selectedMeetings = selected
+    ? meetings.filter((meeting) => meeting.projectId === selected.id).sort((first, second) => second.startsAt.localeCompare(first.startsAt))
+    : [];
+  const selectedIssues = selected
+    ? issues.filter((issue) => issue.projectId === selected.id).sort((first, second) => second.createdAt.localeCompare(first.createdAt))
+    : [];
+  const selectedCompletedMeetings = selectedMeetings.filter((meeting) => meeting.status === 'realizada').length;
+  const selectedSummary = selected ? report.projects.find(({ project }) => project.id === selected.id) : undefined;
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full max-w-md">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="border border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-sm">
+          <h1 className="text-2xl font-black tracking-tight text-[#0E2C40]">Informe semanal</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Del {formatDate(report.weekStart)} al {formatDate(report.weekEnd)} · seguimiento basado en reuniones realizadas.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button tone="secondary" onClick={() => setReportDate((current) => new Date(current.getFullYear(), current.getMonth(), current.getDate() - 7))}>← Semana anterior</Button>
+            <Button tone="secondary" onClick={() => setReportDate(new Date())}>Semana actual</Button>
+            <Button tone="secondary" onClick={() => setReportDate((current) => new Date(current.getFullYear(), current.getMonth(), current.getDate() + 7))}>Semana siguiente →</Button>
+          </div>
+        </div>
+        <div className="relative w-full min-w-0 max-w-md">
           <Search className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar proyecto por nombre, código o empresa…"
             className={`${inputClass} pl-10`}
+            aria-label="Buscar proyecto en el informe semanal"
           />
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="p-5">
-          <p className="text-xs font-bold text-slate-500">Tareas abiertas</p>
-          <p className="mt-2 text-3xl font-black text-[#0E2C40]">{totals.tasks}</p>
+          <p className="text-xs font-bold text-slate-500">Reuniones de la semana</p>
+          <p className="mt-2 text-3xl font-black text-[#0D9488]">{report.meetings}</p>
+          <p className="mt-1 text-xs text-slate-400">{report.completedMeetings} realizadas</p>
         </Card>
         <Card className="p-5">
-          <p className="text-xs font-bold text-slate-500">Tareas vencidas</p>
-          <p className="mt-2 text-3xl font-black text-amber-600">{totals.overdue}</p>
+          <p className="text-xs font-bold text-slate-500">Incidencias con actividad</p>
+          <p className="mt-2 text-3xl font-black text-rose-600">{report.createdIssues}</p>
+          <p className="mt-1 text-xs text-slate-400">Creadas o actualizadas esta semana</p>
         </Card>
         <Card className="p-5">
-          <p className="text-xs font-bold text-slate-500">Incidencias abiertas</p>
-          <p className="mt-2 text-3xl font-black text-rose-600">{totals.issues}</p>
+          <p className="text-xs font-bold text-slate-500">Sin reunión esta semana</p>
+          <p className="mt-2 text-3xl font-black text-amber-600">{report.withoutMeetings.length}</p>
+          <p className="mt-1 text-xs text-slate-400">Proyectos para retomar</p>
+        </Card>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-extrabold text-[#0E2C40]">Proyectos con mayor seguimiento</h2>
+              <p className="mt-1 text-xs text-slate-500">Ordenados por reuniones realizadas esta semana.</p>
+            </div>
+            <CalendarDays className="h-5 w-5 text-[#0D9488]" aria-hidden="true" />
+          </div>
+          <div className="mt-4 space-y-2">
+            {report.mostFollowed.length ? report.mostFollowed.map(({ project, completedMeetings, createdIssues }) => (
+              <button key={project.id} onClick={() => setSelected(project)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 text-left transition hover:border-teal-200 hover:bg-teal-50/50">
+                <span><b className="block text-sm text-[#0E2C40]">{project.code} · {project.title}</b><small className="text-slate-500">{createdIssues} incidencias registradas</small></span>
+                <span className="rounded-lg bg-teal-100 px-2.5 py-1 text-xs font-extrabold text-teal-800">{completedMeetings} reuniones</span>
+              </button>
+            )) : <Empty text="No hay reuniones realizadas en esta semana todavía." />}
+          </div>
+        </Card>
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-extrabold text-[#0E2C40]">Proyectos para retomar</h2>
+              <p className="mt-1 text-xs text-slate-500">No tienen una reunión agendada ni actualizada esta semana.</p>
+            </div>
+            <AlertTriangle className="h-5 w-5 text-amber-600" aria-hidden="true" />
+          </div>
+          <div className="mt-4 space-y-2">
+            {report.withoutMeetings.length ? report.withoutMeetings.map(({ project, createdIssues }) => (
+              <button key={project.id} onClick={() => setSelected(project)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 text-left transition hover:border-amber-200 hover:bg-amber-50/50">
+                <span><b className="block text-sm text-[#0E2C40]">{project.code} · {project.title}</b><small className="text-slate-500">{createdIssues} incidencias registradas</small></span>
+                <ChevronRight className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              </button>
+            )) : <Empty text="Todos los proyectos registran al menos una reunión esta semana." />}
+          </div>
         </Card>
       </div>
 
       <Card className="overflow-hidden p-0">
+        <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-extrabold text-[#0E2C40]">Detalle por proyecto</h2><p className="mt-1 text-xs text-slate-500">Consulta el historial de reuniones e incidencias de cada proyecto.</p></div>
         <div className="divide-y divide-slate-100">
-          {filtered.map((project) => {
-            const tasks = OperationsService.getTasks(project.id);
-            const issues = OperationsService.getIssues(project.id);
-            const meetings = OperationsService.getMeetings(project.id);
-            return (
+          {filtered.map(({ project, meetings, createdIssues }) => (
               <button
                 key={project.id}
                 onClick={() => setSelected(project)}
-                className="grid w-full gap-2 p-4 text-left transition hover:bg-slate-50/70 md:grid-cols-[1fr_repeat(3,120px)_auto]"
+                className="grid w-full gap-2 p-4 text-left transition hover:bg-slate-50/70 md:grid-cols-[1fr_repeat(2,150px)_auto]"
               >
                 <span>
-                  <b className="block text-[#0E2C40]">{project.code}</b>
+                  <b className="block text-[#0E2C40]">{project.code} · {project.title}</b>
                   <small className="text-slate-400">{project.companyName}</small>
                 </span>
                 <span className="text-sm">
-                  <b className="text-slate-800">{tasks.filter((task) => task.status === 'completada').length}</b>
-                  <small className="block text-slate-400">realizadas</small>
+                  <b className="text-slate-800">{meetings}</b>
+                  <small className="block text-slate-400">reuniones esta semana</small>
                 </span>
                 <span className="text-sm">
-                  <b className="text-slate-800">{issues.length}</b>
-                  <small className="block text-slate-400">incidencias</small>
-                </span>
-                <span className="text-sm">
-                  <b className="text-slate-800">{meetings.filter((meeting) => meeting.status === 'realizada').length}</b>
-                  <small className="block text-slate-400">reuniones</small>
+                  <b className="text-slate-800">{createdIssues}</b>
+                  <small className="block text-slate-400">incidencias esta semana</small>
                 </span>
                 <ChevronRight className="h-4 w-4 self-center text-slate-400" />
               </button>
-            );
-          })}
+          ))}
           {!filtered.length && <Empty text="No hay proyectos que coincidan con la búsqueda." />}
         </div>
       </Card>
 
-      <Modal open={Boolean(selected)} title={selected ? `Reporte · ${selected.code}` : 'Reporte'} onClose={() => setSelected(null)}>
+      <Modal open={Boolean(selected)} title={selected ? `Seguimiento · ${selected.code}` : 'Seguimiento'} onClose={() => setSelected(null)}>
         {selected && (
           <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
-                <b className="text-xs text-slate-500">Estudiantes</b>
-                <p className="mt-1 text-2xl font-black text-[#0E2C40]">{selected.assignedStudents.length}</p>
-              </div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
-                <b className="text-xs text-slate-500">Tareas realizadas</b>
-                <p className="mt-1 text-2xl font-black text-emerald-600">
-                  {OperationsService.getTasks(selected.id).filter((task) => task.status === 'completada').length}
-                </p>
-              </div>
+            <p className="text-sm text-slate-600">{selected.title} · {selected.companyName}</p>
+            <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
                 <b className="text-xs text-slate-500">Reuniones realizadas</b>
-                <p className="mt-1 text-2xl font-black text-[#0D9488]">
-                  {OperationsService.getMeetings(selected.id).filter((meeting) => meeting.status === 'realizada').length}
-                </p>
+                <p className="mt-1 text-2xl font-black text-[#0D9488]">{selectedCompletedMeetings}</p>
+                <p className="mt-1 text-xs text-slate-500">Total del historial del proyecto</p>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                <b className="text-xs text-slate-500">Actividad de reuniones esta semana</b>
+                <p className="mt-1 text-2xl font-black text-rose-600">{selectedSummary?.meetings || 0}</p>
+                <p className="mt-1 text-xs text-slate-500">{selectedSummary?.completedMeetings || 0} realizadas en la semana</p>
               </div>
             </div>
-            <h3 className="font-extrabold text-[#0E2C40]">Estudiantes</h3>
-            <ul className="list-disc pl-5 text-sm text-slate-600">
-              {selected.assignedStudents.map((student) => (
-                <li key={student.email}>
-                  {student.name} · {student.email}
-                </li>
-              ))}
-            </ul>
-            <h3 className="font-extrabold text-[#0E2C40]">Contactos de organización</h3>
-            <ul className="list-disc pl-5 text-sm text-slate-600">
-              {selected.contacts.map((contact) => (
-                <li key={contact.email}>
-                  {contact.name} · {contact.email} · {contact.phone || 'sin celular'}
-                </li>
-              ))}
-            </ul>
-            <p className="text-sm text-slate-600">
-              Incidencias presentadas: <b>{OperationsService.getIssues(selected.id).length}</b>
-            </p>
+            <section>
+              <h3 className="font-extrabold text-[#0E2C40]">Historial de reuniones</h3>
+              <div className="mt-2 space-y-2">
+                {selectedMeetings.length ? selectedMeetings.map((meeting) => (
+                  <div key={meeting.id} className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-slate-100 p-3">
+                    <div><p className="text-sm font-bold text-slate-800">{meeting.title}</p><p className="mt-1 text-xs text-slate-500">{formatDate(meeting.startsAt)} · {meeting.durationMinutes} min</p></div>
+                    <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{meeting.status.replace('_', ' ')}</span>
+                  </div>
+                )) : <Empty text="No hay reuniones registradas para este proyecto." />}
+              </div>
+            </section>
+            <section>
+              <h3 className="font-extrabold text-[#0E2C40]">Historial de incidencias</h3>
+              <div className="mt-2 space-y-2">
+                {selectedIssues.length ? selectedIssues.map((issue) => (
+                  <div key={issue.id} className="rounded-xl border border-slate-100 p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2"><p className="text-sm font-bold text-slate-800">{issue.title}</p><span className="rounded-lg bg-rose-50 px-2 py-1 text-xs font-bold text-rose-700">{issue.status.replace('_', ' ')}</span></div>
+                    <p className="mt-1 text-sm text-slate-600">{issue.description}</p><p className="mt-2 text-xs text-slate-500">Reportada el {formatDate(issue.createdAt)}</p>
+                  </div>
+                )) : <Empty text="No hay incidencias registradas para este proyecto." />}
+              </div>
+            </section>
             <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
-              <Button tone="secondary" onClick={() => printProjectReport(selected)}>
-                <Download className="h-4 w-4" />
-                Imprimir
-              </Button>
               <Button tone="ghost" onClick={() => setSelected(null)}>
                 Cerrar
               </Button>
